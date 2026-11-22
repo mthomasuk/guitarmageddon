@@ -37,11 +37,14 @@ export function pdfString(s) {
   return out + ')';
 }
 
+const TIMES_BOLD_SCALE = 1.15;
+
 function num(n) {
   return Number(n.toFixed(2)).toString();
 }
 
-function wrapHelv(text, size, maxW) {
+/** Word-wrap using Helvetica widths; scale > 1 leaves room for fonts with wider glyphs. */
+function wrapHelv(text, size, maxW, scale = 1) {
   const out = [];
   for (const para of String(text).split('\n')) {
     if (!para.trim()) {
@@ -51,7 +54,7 @@ function wrapHelv(text, size, maxW) {
     let line = '';
     for (const word of para.split(/\s+/).filter(Boolean)) {
       const next = line ? line + ' ' + word : word;
-      if (line && helvWidth(next, size) > maxW) {
+      if (line && helvWidth(next, size) * scale > maxW) {
         out.push(line);
         line = word;
       } else line = next;
@@ -143,7 +146,8 @@ export function songToPdf(song, { pageSize = 'a4', style = 'illuminated' } = {})
     illuminatedInitial(M, y + 6, SIZE, first.toUpperCase());
     const tx = M + SIZE + 14;
     let ty = y - 20;
-    const lines = wrapHelv(rest.join('') || ' ', 24, usableW - SIZE - 20);
+    // Drawn in Times-Bold, whose capitals run up to ~13% wider than Helvetica's (M: 944 vs 833).
+    const lines = wrapHelv(rest.join('') || ' ', 24, usableW - SIZE - 20, TIMES_BOLD_SCALE);
     lines.forEach((t, i) => {
       text(tx, ty, F.bold, 24, t, INK);
       if (i < lines.length - 1) ty -= 26;

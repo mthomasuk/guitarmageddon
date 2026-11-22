@@ -968,18 +968,20 @@ function setClipboard(columns) {
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 function selectionAction(kind) {
-  const n = editor.selCount;
   switch (kind) {
     case 'copy': {
-      setClipboard(editor.copySelection());
+      const copied = editor.copySelection();
+      setClipboard(copied);
       const r = editor.selRange;
       editor.clearSelection();
       if (r) editor.select(r.sec, r.to);
-      return toast(`Copied ${plural(n, 'column')} — tap where you want it, then Paste`);
+      return toast(`Copied ${plural(copied.length, 'column')} — tap where you want it, then Paste`);
     }
-    case 'cut':
-      setClipboard(editor.cutSelection());
-      return toast(`Cut ${plural(n, 'column')}`);
+    case 'cut': {
+      const cut = editor.cutSelection();
+      setClipboard(cut);
+      return toast(`Cut ${plural(cut.length, 'column')}`);
+    }
     case 'paste':
       if (!clipboard) return toast('Nothing copied yet');
       editor.paste(clipboard);

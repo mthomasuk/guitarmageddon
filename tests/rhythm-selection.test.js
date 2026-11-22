@@ -216,3 +216,55 @@ test('other edits end the selection; selections in another section start over', 
   e.enterFret(5, LOW_E);
   assert.equal(e.selection, null);
 });
+
+// ---------------------------------------------------------------- review regressions
+
+test('moving right through unwritten space keeps redo and does not mark the song changed', () => {
+  const e = new Editor(createSong());
+  e.setDuration(4);
+  e.enterFret(3, LOW_E);
+  e.enterFret(5, LOW_E);
+  e.undo();
+  const updated = e.song.updated;
+  e.moveRight();
+  e.moveRight();
+  assert.equal(e.redoStack.length, 1, 'redo survives cursor movement');
+  assert.equal(e.song.updated, updated);
+  assert.equal(e.column.dur, e.duration, 'unwritten space still takes the current length');
+});
+
+test('pasting onto a rest inserts after it instead of overwriting it', () => {
+  const e = editorWithSection(1);
+  e.setDuration(4);
+  e.enterFret(3, LOW_E);
+  e.enterFret(5, LOW_E);
+  e.moveRight(); // rest
+  e.enterFret(7, LOW_E);
+  e.select(0, 2);
+  e.paste([{ type: 'note', cells: ['9', '', '', '', '', ''], label: '', dur: 4 }]);
+  const flat = e.section.columns.slice(0, 5).map((c) => c.cells[LOW_E]);
+  assert.deepEqual(flat, ['3', '5', '', '9', '7']);
+});
+
+test('whole bar on the second of two adjacent bar lines selects only the empty measure', () => {
+  const e = editorWithSection(1);
+  e.enterFret(3, LOW_E);
+  e.insertBar();
+  e.insertBar();
+  e.enterFret(5, LOW_E);
+  const types = e.section.columns.slice(0, 4).map((c) => c.type);
+  assert.deepEqual(types, ['note', 'bar', 'bar', 'note']);
+  e.select(0, 2);
+  e.selectBar();
+  assert.deepEqual(e.selRange, { sec: 0, from: 2, to: 2 });
+});
+
+test('tapping into unwritten space gives it the current length', () => {
+  const e = editorWithSection(4);
+  e.setDuration(8);
+  e.select(0, 3);
+  e.setDuration(4);
+  e.select(0, 0);
+  e.select(0, 3);
+  assert.equal(e.column.dur, 4);
+});
