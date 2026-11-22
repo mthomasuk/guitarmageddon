@@ -1,5 +1,5 @@
 // Minimal PDF 1.4 writer using the 14 standard fonts (no embedding needed).
-import { layoutSection, metaLine, usedLegend } from './tabtext.js';
+import { layoutSection, metaLine, usedLegend, wrapWords } from './tabtext.js';
 
 export const PAGE_SIZES = {
   a4: [595.28, 841.89],
@@ -108,8 +108,8 @@ export function songToPdf(song, { pageSize = 'a4' } = {}) {
   y -= 16;
 
   for (const sec of song.sections) {
-    const systems = layoutSection(sec, song.tuning, maxChars);
-    const sysHeight = (s) => (s.label ? LEAD : 0) + s.lines.length * LEAD + 10;
+    const systems = layoutSection(sec, song.tuning, maxChars, { rhythm: !!song.rhythm });
+    const sysHeight = (s) => (s.label ? LEAD : 0) + (s.rhythm ? LEAD : 0) + s.lines.length * LEAD + 10;
     // Keep the heading with the first row of tab.
     ensure(26 + (systems.length ? sysHeight(systems[0]) : 14));
     y -= 14;
@@ -124,6 +124,10 @@ export function songToPdf(song, { pageSize = 'a4' } = {}) {
       for (const line of sys.lines) {
         y -= LEAD;
         text(M, y, 'F3', TAB_SIZE, line);
+      }
+      if (sys.rhythm) {
+        y -= LEAD;
+        text(M, y, 'F4', TAB_SIZE, sys.rhythm, 0.35);
       }
       y -= 10;
     }
@@ -140,10 +144,11 @@ export function songToPdf(song, { pageSize = 'a4' } = {}) {
 
   const legend = usedLegend(song);
   if (legend.length) {
-    ensure(20 + legend.length * 12);
+    const legendLines = legend.flatMap((l) => wrapWords(l, Math.floor(usableW / (8.5 * 0.6))));
+    ensure(20 + legendLines.length * 12);
     y -= 12;
     text(M, y, 'F2', 9, 'Legend', 0.35);
-    for (const l of legend) {
+    for (const l of legendLines) {
       y -= 12;
       text(M, y, 'F3', 8.5, l, 0.35);
     }

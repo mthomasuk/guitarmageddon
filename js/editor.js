@@ -1,4 +1,4 @@
-import { emptyColumn, barColumn, isEmptyNote, clone, createSection, MAX_FRET } from './model.js';
+import { emptyColumn, barColumn, isEmptyNote, clone, createSection, fitColumn, MAX_FRET, DEFAULT_DUR } from './model.js';
 
 // Techniques that join two frets inside one cell, e.g. 5h7, 7b9, 9r7, 5/7.
 export const JOIN_TECHNIQUES = {
@@ -25,6 +25,9 @@ export class Editor {
     this.lastEdit = null; // {sec,col,str,time,value}
     this.undoStack = [];
     this.redoStack = [];
+    this.duration = DEFAULT_DUR; // length given to new notes (see model DURATIONS)
+    this.dot = false;
+    this.selection = null; // {sec, anchor, head} column range within one section
     this.onChange = onChange || (() => {});
   }
 
@@ -42,9 +45,11 @@ export class Editor {
   snapshot() {
     return JSON.stringify({ song: this.song, cursor: this.cursor });
   }
-  commit(fn) {
+  /** Run a mutation with undo support. Most edits end a selection; pass keepSelection to keep it. */
+  commit(fn, { keepSelection = false } = {}) {
     const before = this.snapshot();
     const result = fn();
+    if (!keepSelection) this.selection = null;
     if (this.snapshot() !== before) {
       this.undoStack.push(before);
       if (this.undoStack.length > UNDO_LIMIT) this.undoStack.shift();
@@ -63,6 +68,7 @@ export class Editor {
     this.cursor = cursor;
     this.pendingJoin = null;
     this.lastEdit = null;
+    this.selection = null;
     this.clampCursor();
   }
   undo() {
@@ -95,19 +101,81 @@ export class Editor {
     this.cursor = { sec, col, str };
     this.pendingJoin = null;
     this.clampCursor();
+    this.followLength();
     this.onChange({ content: false });
   }
+
+  // ---------- note lengths ----------
+  /** True if column i is empty and nothing but empty columns follow it (unwritten space). */
+  isFresh(i = this.cursor.col, cols = this.section.columns) {
+    for (let k = i; k < cols.length; k++) if (!isEmptyNote(cols[k])) return false;
+    return true;
+  }
+  hasCurrentLength(col) {
+    return col.type === 'note' && (col.dur || DEFAULT_DUR) === this.duration && !!col.dot === this.dot;
+  }
+  setLength(col, dur, dot) {
+    if (col.type !== 'note') return;
+    col.dur = dur;
+    if (dot) col.dot = true;
+    else delete col.dot;
+  }
+  /** When you select written music, the length buttons show (and continue with) its length. */
+  followLength() {
+    const col = this.column;
+    if (col.type === 'note' && !this.isFresh()) {
+      this.duration = col.dur || DEFAULT_DUR;
+      this.dot = !!col.dot;
+    }
+  }
+  /** Unwritten space you move into takes the current length, so rhythms carry on as you write. */
+  inheritLength() {
+    if (this.isFresh()) this.setLength(this.column, this.duration, this.dot);
+  }
+  /** Columns a length change applies to: the selection, or the column under the cursor. */
+  lengthTargets() {
+    const r = this.selRange;
+    if (r) return this.song.sections[r.sec].columns.slice(r.from, r.to + 1).filter((c) => c.type === 'note');
+    return this.column.type === 'note' ? [this.column] : [];
+  }
+  setDuration(dur) {
+    this.commit(
+      () => {
+        this.duration = dur;
+        this.song.rhythm = true;
+        for (const col of this.lengthTargets()) this.setLength(col, dur, !!col.dot); // each keeps its own dot
+      },
+      { keepSelection: true }
+    );
+  }
+  toggleDot() {
+    this.commit(
+      () => {
+        this.dot = !this.dot;
+        this.song.rhythm = true;
+        for (const col of this.lengthTargets()) this.setLength(col, col.dur || DEFAULT_DUR, this.dot);
+      },
+      { keepSelection: true }
+    );
+  }
+
   /** Move right one column, appending new columns at the end of a section. */
   advance() {
     const cols = this.section.columns;
-    if (this.cursor.col >= cols.length - 1) cols.push(emptyColumn(this.strings));
+    if (this.cursor.col >= cols.length - 1) cols.push(emptyColumn(this.strings, this.duration, this.dot));
     this.cursor.col += 1;
+    this.inheritLength();
   }
   moveRight() {
     this.pendingJoin = null;
-    const grows = this.cursor.col >= this.section.columns.length - 1;
-    if (grows) return this.commit(() => this.advance());
-    this.cursor.col += 1;
+    const cols = this.section.columns;
+    const next = this.cursor.col + 1;
+    // Growing the section, or stepping into unwritten space that needs the current length (a rest).
+    if (next >= cols.length || (this.isFresh(next) && !this.hasCurrentLength(cols[next]))) {
+      return this.commit(() => this.advance(), { keepSelection: true });
+    }
+    this.cursor.col = next;
+    this.followLength();
     this.onChange({ content: false });
   }
   moveLeft() {
@@ -117,6 +185,7 @@ export class Editor {
       this.cursor.sec -= 1;
       this.cursor.col = this.section.columns.length - 1;
     }
+    this.followLength();
     this.onChange({ content: false });
   }
   moveString(delta) {
@@ -128,7 +197,7 @@ export class Editor {
   /** Ensure the cursor sits on a note column (if on a bar, step past it). */
   ensureNoteColumn() {
     if (this.column.type === 'bar') {
-      this.section.columns.splice(this.cursor.col + 1, 0, emptyColumn(this.strings));
+      this.section.columns.splice(this.cursor.col + 1, 0, emptyColumn(this.strings, this.duration, this.dot));
       this.cursor.col += 1;
     }
     return this.column;
@@ -143,6 +212,7 @@ export class Editor {
       const pj = this.pendingJoin;
       const joining = pj && pj.sec === this.cursor.sec && pj.col === this.cursor.col && pj.str === str;
       const col = this.ensureNoteColumn();
+      if (col.cells.every((c) => c === '')) this.setLength(col, this.duration, this.dot);
       if (joining) {
         col.cells[str] += value;
       } else {
@@ -272,7 +342,7 @@ export class Editor {
 
   insertColumn() {
     this.commit(() => {
-      this.section.columns.splice(this.cursor.col, 0, emptyColumn(this.strings));
+      this.section.columns.splice(this.cursor.col, 0, emptyColumn(this.strings, this.duration, this.dot));
     });
   }
 
@@ -311,7 +381,147 @@ export class Editor {
       }
       col.cells = frets.map((f) => String(f));
       col.label = name;
+      this.setLength(col, this.duration, this.dot);
       this.lastEdit = null;
+      this.advance();
+    });
+  }
+
+  // ---------- selection ----------
+  /** Normalised selection {sec, from, to} (inclusive), or null. */
+  get selRange() {
+    const s = this.selection;
+    if (!s) return null;
+    return { sec: s.sec, from: Math.min(s.anchor, s.head), to: Math.max(s.anchor, s.head) };
+  }
+  get selCount() {
+    const r = this.selRange;
+    return r ? r.to - r.from + 1 : 0;
+  }
+  isSelected(sec, col) {
+    const r = this.selRange;
+    return !!r && r.sec === sec && col >= r.from && col <= r.to;
+  }
+  startSelection(sec = this.cursor.sec, col = this.cursor.col) {
+    this.pendingJoin = null;
+    this.cursor = { ...this.cursor, sec, col };
+    this.clampCursor();
+    this.selection = { sec: this.cursor.sec, anchor: this.cursor.col, head: this.cursor.col };
+    this.onChange({ content: false });
+  }
+  /** Extend the selection to a column (starting over if it's in another section). */
+  extendSelection(sec, col) {
+    if (!this.selection || this.selection.sec !== sec) return this.startSelection(sec, col);
+    this.cursor = { ...this.cursor, sec, col };
+    this.clampCursor();
+    this.selection.head = this.cursor.col;
+    this.onChange({ content: false });
+  }
+  /** Shift+arrow style: move the selection's moving end by one column. */
+  nudgeSelection(delta) {
+    if (!this.selection) this.startSelection();
+    const cols = this.song.sections[this.selection.sec].columns;
+    this.extendSelection(this.selection.sec, Math.max(0, Math.min(cols.length - 1, this.selection.head + delta)));
+  }
+  clearSelection() {
+    if (!this.selection) return;
+    this.selection = null;
+    this.onChange({ content: false });
+  }
+  /** Select the whole bar (measure) around the cursor, including its closing bar line. */
+  selectBar() {
+    const cols = this.section.columns;
+    const c = this.cursor.col;
+    let from = cols[c].type === 'bar' ? c - 1 : c;
+    while (from > 0 && cols[from - 1].type !== 'bar') from--;
+    from = Math.max(0, from);
+    let to = cols[c].type === 'bar' ? c : c;
+    while (to < cols.length && cols[to].type !== 'bar') to++;
+    if (to >= cols.length) {
+      to = cols.length - 1;
+      while (to > from && isEmptyNote(cols[to])) to--;
+    }
+    this.pendingJoin = null;
+    this.selection = { sec: this.cursor.sec, anchor: from, head: to };
+    this.cursor.col = to;
+    this.onChange({ content: false });
+  }
+  /** Copies of the selected columns (or the cursor column if nothing is selected). */
+  copySelection() {
+    const r = this.selRange;
+    if (!r) return [clone(this.column)];
+    return clone(this.song.sections[r.sec].columns.slice(r.from, r.to + 1));
+  }
+  deleteSelection() {
+    const r = this.selRange;
+    if (!r) return this.deleteColumn();
+    this.commit(() => {
+      const cols = this.song.sections[r.sec].columns;
+      cols.splice(r.from, r.to - r.from + 1);
+      if (!cols.length) cols.push(emptyColumn(this.strings, this.duration, this.dot));
+      this.cursor = { ...this.cursor, sec: r.sec, col: r.from };
+      this.clampCursor();
+    });
+  }
+  /** Empty the selected columns but keep them (and their lengths) as rests. */
+  clearSelected() {
+    const r = this.selRange;
+    if (!r) return this.clearColumn();
+    this.commit(
+      () => {
+        for (const col of this.song.sections[r.sec].columns.slice(r.from, r.to + 1)) {
+          if (col.type !== 'note') continue;
+          col.cells = col.cells.map(() => '');
+          col.label = '';
+        }
+      },
+      { keepSelection: true }
+    );
+  }
+  cutSelection() {
+    const clip = this.copySelection();
+    this.deleteSelection();
+    return clip;
+  }
+  /** Insert a copy of the selection right after it, and select the copy (tap again to keep repeating). */
+  repeatSelection() {
+    if (!this.selection) this.startSelection();
+    const r = this.selRange;
+    this.commit(
+      () => {
+        const cols = this.song.sections[r.sec].columns;
+        const block = clone(cols.slice(r.from, r.to + 1));
+        cols.splice(r.to + 1, 0, ...block);
+        this.selection = { sec: r.sec, anchor: r.to + 1, head: r.to + block.length };
+        this.cursor = { ...this.cursor, sec: r.sec, col: r.to + block.length };
+      },
+      { keepSelection: true }
+    );
+  }
+  /**
+   * Paste columns: replaces the selection if there is one, fills an empty column at the cursor,
+   * or goes after the column under the cursor. The cursor ends just after the pasted music.
+   */
+  paste(columns) {
+    if (!columns || !columns.length) return;
+    this.commit(() => {
+      const block = clone(columns).map((c) => fitColumn(c, this.strings));
+      const r = this.selRange;
+      let start;
+      if (r) {
+        this.cursor = { ...this.cursor, sec: r.sec };
+        this.section.columns.splice(r.from, r.to - r.from + 1, ...block);
+        start = r.from;
+      } else if (isEmptyNote(this.column)) {
+        start = this.cursor.col;
+        this.section.columns.splice(start, 1, ...block);
+      } else {
+        start = this.cursor.col + 1;
+        this.section.columns.splice(start, 0, ...block);
+      }
+      this.pendingJoin = null;
+      this.lastEdit = null;
+      this.cursor.col = start + block.length - 1;
       this.advance();
     });
   }

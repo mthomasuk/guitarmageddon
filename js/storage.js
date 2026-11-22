@@ -86,3 +86,15 @@ export function loadPrefs() {
 export function savePrefs(prefs) {
   write(PREFS_KEY, prefs);
 }
+
+// Copied columns, kept between sessions so you can paste into another tab later.
+const CLIPBOARD_KEY = 'guitarmageddon.clipboard.v1';
+
+export function loadClipboard() {
+  const c = read(CLIPBOARD_KEY, null);
+  return Array.isArray(c) && c.length ? c : null;
+}
+
+export function saveClipboard(columns) {
+  return write(CLIPBOARD_KEY, columns);
+}
