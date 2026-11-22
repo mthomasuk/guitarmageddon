@@ -7,8 +7,28 @@ export function uid() {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 }
 
-export function emptyColumn(strings) {
-  return { type: 'note', cells: Array(strings).fill(''), label: '' };
+/** Note lengths: 1 = whole, 2 = half, 4 = quarter, 8 = eighth, 16 = sixteenth, 32 = thirty-second. */
+export const DURATIONS = [1, 2, 4, 8, 16, 32];
+export const DEFAULT_DUR = 8;
+
+export function emptyColumn(strings, dur = DEFAULT_DUR, dot = false) {
+  const col = { type: 'note', cells: Array(strings).fill(''), label: '', dur };
+  if (dot) col.dot = true;
+  return col;
+}
+
+/** Length of a column in quarter-note beats (bars take no time). */
+export function columnBeats(col) {
+  if (col.type !== 'note') return 0;
+  return (4 / (col.dur || DEFAULT_DUR)) * (col.dot ? 1.5 : 1);
+}
+
+/** Fit a column copied from a tab with a different number of strings (low strings added/dropped). */
+export function fitColumn(col, strings) {
+  if (col.type !== 'note' || col.cells.length === strings) return col;
+  const n = col.cells.length;
+  col.cells = strings > n ? [...Array(strings - n).fill(''), ...col.cells] : col.cells.slice(n - strings);
+  return col;
 }
 
 export function barColumn() {
@@ -38,6 +58,7 @@ export function createSong(opts = {}) {
     tuning,
     capo: 0,
     tempo: 100,
+    rhythm: false, // show note lengths in the tab and exports
     sections: [createSection('Intro', tuning.length)],
     created: now,
     updated: now,
@@ -84,10 +105,13 @@ export function normalizeSong(raw) {
             type: 'note',
             label: c.label || '',
             cells: Array.from({ length: n }, (_, i) => String((c.cells || [])[i] ?? '')),
+            dur: DURATIONS.includes(c.dur) ? c.dur : DEFAULT_DUR,
+            ...(c.dot ? { dot: true } : {}),
           }
     ),
   }));
   if (!song.sections.length) song.sections.push(createSection('Intro', n));
+  song.rhythm = !!song.rhythm;
   return song;
 }
 

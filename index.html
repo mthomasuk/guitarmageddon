@@ -83,7 +83,17 @@
         <div class="panel" id="panel-fretboard"></div>
         <div class="panel" id="panel-keypad" hidden></div>
         <div class="panel" id="panel-chords" hidden></div>
-        <div class="tech-row" id="tech-row" aria-label="Techniques"></div>
+        <div class="tech-row" id="tech-row" aria-label="Note lengths and techniques"></div>
+        <div class="sel-bar" id="sel-bar" hidden>
+          <button class="act" data-sel="copy">Copy</button>
+          <button class="act" data-sel="cut">Cut</button>
+          <button class="act" data-sel="paste">Paste</button>
+          <button class="act" data-sel="repeat">Repeat</button>
+          <button class="act" data-sel="bar">Whole bar</button>
+          <button class="act" data-sel="clear">Clear</button>
+          <button class="act danger" data-sel="delete">Delete</button>
+          <button class="act done" data-sel="done">Done</button>
+        </div>
         <div class="action-row">
           <button class="act" id="act-left" aria-label="Previous column">
             <svg viewBox="0 0 24 24" width="20" height="20"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -93,6 +103,10 @@
             <small>space</small>
           </button>
           <button class="act" id="act-bar" aria-label="Insert bar line"><b>|</b><small>bar</small></button>
+          <button class="act" id="act-select" aria-label="Select columns to copy or repeat">
+            <svg viewBox="0 0 24 24" width="20" height="20"><rect x="4" y="5" width="16" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3 2.5"/></svg>
+            <small>select</small>
+          </button>
           <button class="act" id="act-back" aria-label="Delete">
             <svg viewBox="0 0 24 24" width="22" height="22"><path d="M9 5h11v14H9l-6-7z M12.5 9.5l5 5 M17.5 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>
           </button>

@@ -871,7 +871,7 @@ button:disabled {
 }
 .action-row {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 5px;
   padding: 2px max(8px, env(safe-area-inset-right)) 6px max(8px, env(safe-area-inset-left));
 }
@@ -1289,4 +1289,100 @@ textarea:focus {
 .check small {
   color: var(--muted);
   font-size: 13px;
+}
+
+/* ---------------------------------------------------------------- note lengths */
+.rh {
+  height: 24px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 2px;
+  color: var(--ink);
+}
+.rh .rest {
+  color: var(--muted);
+}
+.rh .ghost {
+  opacity: 0.3;
+}
+.col.names .rh {
+  display: none;
+}
+.col.names {
+  justify-content: flex-start;
+}
+.len-group,
+.tech-group {
+  display: flex;
+  gap: 5px;
+  flex: none;
+}
+.tech.len {
+  min-width: 44px;
+}
+.tech.len .glyph {
+  width: 11px;
+  height: 17px;
+}
+.tech.len b {
+  font-size: 20px;
+  line-height: 0.8;
+}
+.tech.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+.tech.on small {
+  color: inherit;
+}
+.tech-sep {
+  flex: none;
+  width: 1px;
+  margin: 4px 3px;
+  background: var(--line);
+}
+
+/* ---------------------------------------------------------------- selection */
+.staff {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+/* Needs to beat `.tab-section.active .col`, which also sets --cellbg. */
+.tab-section .col.insel {
+  --cellbg: color-mix(in srgb, var(--accent) 22%, var(--surface));
+  background: var(--cellbg);
+  border-radius: 0;
+}
+.col.bar.insel .cell::after {
+  background: var(--accent);
+}
+.dock.selecting .dock-bar,
+.dock.selecting .tech-sep,
+.dock.selecting .tech-group,
+.dock.selecting .action-row {
+  display: none;
+}
+.dock.selecting .hint {
+  padding-top: 10px;
+  font-size: 13px;
+}
+.sel-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+  padding: 2px max(8px, env(safe-area-inset-right)) 8px max(8px, env(safe-area-inset-left));
+}
+.sel-bar .act {
+  font-weight: 700;
+  font-size: 14px;
+}
+.sel-bar .act.danger {
+  color: var(--danger);
+}
+.sel-bar .act.done {
+  background: var(--accent);
+  color: var(--accent-ink);
 }

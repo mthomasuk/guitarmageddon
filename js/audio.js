@@ -1,5 +1,5 @@
 // Plucked-string synth (Karplus-Strong), rendered into cached AudioBuffers.
-import { cellFret } from './model.js';
+import { cellFret, columnBeats } from './model.js';
 import { noteToMidi } from './tunings.js';
 
 let ctx = null;
@@ -92,14 +92,14 @@ export function playColumn(song, col, when = 0) {
 let timers = [];
 
 /**
- * Play from a position to the end of the song. Each note column is an eighth note.
+ * Play from a position to the end of the song, following each column's note length.
  * onStep(sec, col) is called as each column sounds; onDone when finished.
  */
 export function playSong(song, from, { onStep, onDone } = {}) {
   stopSong();
   const c = audioContext();
   if (!c) return;
-  const step = 60 / (Number(song.tempo) || 100) / 2;
+  const beat = 60 / (Number(song.tempo) || 100);
   let t = 0.08;
   const start = c.currentTime;
   for (let s = from.sec; s < song.sections.length; s++) {
@@ -113,7 +113,7 @@ export function playSong(song, from, { onStep, onDone } = {}) {
       const at = t;
       const sec = s;
       timers.push(setTimeout(() => onStep && onStep(sec, i), at * 1000));
-      t += step;
+      t += columnBeats(col) * beat;
     }
   }
   timers.push(setTimeout(() => onDone && onDone(), t * 1000 + 150));

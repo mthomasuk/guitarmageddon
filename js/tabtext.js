@@ -1,4 +1,20 @@
-import { isEmptyNote } from './model.js';
+import { isEmptyNote, DEFAULT_DUR } from './model.js';
+
+// Rhythm letters (a common ASCII-tab convention); lowercase marks a rest.
+export const RHYTHM_LETTERS = { 1: 'W', 2: 'H', 4: 'Q', 8: 'E', 16: 'S', 32: 'T' };
+// Dashes after each note when spacing is proportional to note length.
+const RHYTHM_GAP = { 1: 9, 2: 5, 4: 3, 8: 2, 16: 1, 32: 1 };
+
+function gapFor(col) {
+  const g = RHYTHM_GAP[col.dur || DEFAULT_DUR] || 2;
+  return col.dot ? Math.round(g * 1.5) : g;
+}
+
+export function rhythmMark(col) {
+  const letter = RHYTHM_LETTERS[col.dur || DEFAULT_DUR] || 'E';
+  const empty = col.cells.every((c) => c === '');
+  return (empty ? letter.toLowerCase() : letter) + (col.dot ? '.' : '');
+}
 import { stringLabels, tuningText, tuningName } from './tunings.js';
 
 const LEGEND = [
@@ -26,7 +42,7 @@ function usedColumns(section) {
  * Lay a section out into "systems" (wrapped rows of tab) no wider than maxChars.
  * Returns [{ label: string|null, lines: string[] }] with lines ordered high string -> low.
  */
-export function layoutSection(section, tuning, maxChars = 80) {
+export function layoutSection(section, tuning, maxChars = 80, { rhythm = false } = {}) {
   const cols = usedColumns(section);
   if (!cols.length) return [];
   const labels = stringLabels(tuning);
@@ -36,7 +52,11 @@ export function layoutSection(section, tuning, maxChars = 80) {
   const tokens = cols.map((c) =>
     c.type === 'bar'
       ? { bar: true, w: 2 }
-      : { bar: false, col: c, cw: Math.max(1, ...c.cells.map((s) => s.length)), get w() { return this.cw + 1; } }
+      : (() => {
+          const cw = Math.max(1, ...c.cells.map((s) => s.length));
+          const gap = rhythm ? gapFor(c) : 1;
+          return { bar: false, col: c, cw: cw + gap - 1, w: cw + gap };
+        })()
   );
 
   const systems = [];
@@ -62,13 +82,13 @@ export function layoutSection(section, tuning, maxChars = 80) {
     }
     // A bar right after the break belongs at the end of this row (it takes the closing "|" slot).
     if (end < tokens.length && tokens[end].bar) end++;
-    systems.push(buildSystem(tokens.slice(start, end), labels, prefixW, tuning.length));
+    systems.push(buildSystem(tokens.slice(start, end), labels, prefixW, tuning.length, rhythm));
     start = end;
   }
   return systems;
 }
 
-function buildSystem(toks, labels, prefixW, n) {
+function buildSystem(toks, labels, prefixW, n, rhythm) {
   const endsWithBar = toks[toks.length - 1].bar;
   const offsets = [];
   let pos = prefixW + 1;
@@ -100,7 +120,18 @@ function buildSystem(toks, labels, prefixW, n) {
     });
     label = Array.from(chars, (c) => c || ' ').join('').trimEnd();
   }
-  return { label, lines };
+
+  let rhythmLine = null;
+  if (rhythm) {
+    const chars = Array(lines[0].length).fill(' ');
+    toks.forEach((t, k) => {
+      if (t.bar) return;
+      const mark = rhythmMark(t.col);
+      for (let j = 0; j < mark.length; j++) chars[offsets[k] + j] = mark[j];
+    });
+    rhythmLine = chars.join('').trimEnd();
+  }
+  return { label, lines, rhythm: rhythmLine };
 }
 
 export function wrapWords(text, width) {
@@ -139,7 +170,9 @@ export function usedLegend(song) {
     .filter((c) => c.type === 'note')
     .flatMap((c) => c.cells)
     .join(' ');
-  return LEGEND.filter(([re]) => re.test(all)).map(([, text]) => text);
+  const out = LEGEND.filter(([re]) => re.test(all)).map(([, text]) => text);
+  if (song.rhythm) out.push('Rhythm (under the tab): W whole, H half, Q quarter, E eighth, S 16th, T 32nd, . dotted, lowercase = rest');
+  return out;
 }
 
 export function songToText(song, { width = 80 } = {}) {
@@ -153,10 +186,11 @@ export function songToText(song, { width = 80 } = {}) {
 
   for (const sec of song.sections) {
     out.push(`[${sec.name}]`);
-    const systems = layoutSection(sec, song.tuning, width);
+    const systems = layoutSection(sec, song.tuning, width, { rhythm: !!song.rhythm });
     systems.forEach((sys, i) => {
       if (sys.label) out.push(sys.label);
       out.push(...sys.lines);
+      if (sys.rhythm) out.push(sys.rhythm);
       if (i < systems.length - 1) out.push('');
     });
     if (sec.notes) {
