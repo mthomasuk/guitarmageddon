@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="130" viewBox="0 0 220 130">
+  <title>A snail playing the lute</title>
+  <!-- ground -->
+  <path d="M6 118c40-6 160-6 208 0" fill="none" stroke="#3d6b45" stroke-width="2"/>
+  <path d="M30 118c2-8 6-12 10-14M38 118c0-6 2-9 5-11M178 118c1-7 5-11 9-12M186 118c0-5 2-8 5-10" fill="none" stroke="#4f8a58" stroke-width="1.6" stroke-linecap="round"/>
+  <!-- body -->
+  <path d="M36 116c10-14 40-16 70-14 26 2 52 0 66-10 8-6 12-18 10-28l6-22" fill="none" stroke="#2a1a0e" stroke-width="2"/>
+  <path d="M36 116c30 2 100 2 140-6 10-2 16-14 14-26-2-6-4-14-2-26" fill="#c9b48a" stroke="#2a1a0e" stroke-width="2"/>
+  <!-- eye stalks -->
+  <path d="M184 62l-6-26M190 60l6-24" stroke="#2a1a0e" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="178" cy="35" r="3.2" fill="#2a1a0e"/><circle cx="196" cy="35" r="3.2" fill="#2a1a0e"/>
+  <path d="M186 84c4 2 8 1 10-2" fill="none" stroke="#2a1a0e" stroke-width="1.6" stroke-linecap="round"/>
+  <!-- shell -->
+  <circle cx="100" cy="70" r="40" fill="#e9c35f" stroke="#2a1a0e" stroke-width="2.2"/>
+  <path d="M100 70m-6 0a6 6 0 1 1 12 0a12 12 0 1 1-24 0a18 18 0 1 1 36 0a24 24 0 1 1-48 0a30 30 0 1 1 60 0" fill="none" stroke="#a8251b" stroke-width="3"/>
+  <path d="M100 70m-34 0a34 34 0 0 1 68 0" fill="none" stroke="#1f3c86" stroke-width="2" opacity="0.6"/>
+  <!-- lute -->
+  <g transform="rotate(-28 160 92)">
+    <path d="M150 92a20 14 0 1 0 40 0z" fill="#8a5a2b" stroke="#2a1a0e" stroke-width="1.8"/>
+    <path d="M150 92h40" stroke="#2a1a0e" stroke-width="1.6"/>
+    <circle cx="170" cy="99" r="3.6" fill="none" stroke="#2a1a0e" stroke-width="1.3"/>
+    <path d="M190 90l34-2v6l-34 0z" fill="#5b3a1c" stroke="#2a1a0e" stroke-width="1.4"/>
+    <path d="M224 88l8-6 2 3-6 8z" fill="#5b3a1c" stroke="#2a1a0e" stroke-width="1.2"/>
+    <path d="M152 91.5L226 90M152 93L226 92" stroke="#efe2c2" stroke-width="0.7"/>
+  </g>
+  <!-- music notes floating -->
+  <g fill="#a8251b" stroke="#a8251b">
+    <path d="M206 20v-14l8-2v12" fill="none" stroke-width="1.6"/>
+    <ellipse cx="204" cy="20" rx="3" ry="2.2"/><ellipse cx="212" cy="16" rx="3" ry="2.2"/>
+  </g>
+  <g fill="#1f3c86" stroke="#1f3c86"><path d="M150 18v-12" stroke-width="1.6"/><ellipse cx="148" cy="18" rx="3" ry="2.2"/></g>
+</svg>

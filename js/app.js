@@ -533,7 +533,9 @@ function fileBase(song) {
 
 function makeFile(song, format) {
   if (format === 'pdf') {
-    return new File([songToPdf(song, { pageSize: prefs.pageSize })], `${fileBase(song)}.pdf`, { type: 'application/pdf' });
+    return new File([songToPdf(song, { pageSize: prefs.pageSize, style: prefs.pdfStyle || 'illuminated' })], `${fileBase(song)}.pdf`, {
+      type: 'application/pdf',
+    });
   }
   const text = songToText(song, { width: Number(prefs.txtWidth) || 80 });
   return new File([text.replace(/\n/g, '\r\n')], `${fileBase(song)}.txt`, { type: 'text/plain' });
@@ -557,11 +559,24 @@ function exportDialog(song) {
   const widthSel = h('select', {}, [60, 72, 80, 100, 120].map((w) => h('option', { value: w }, `${w} characters`)));
   widthSel.value = String(prefs.txtWidth);
   const pageField = h('label', { class: 'field' }, h('span', {}, 'Paper size'), pageSel);
+  const styleSeg = h(
+    'div',
+    { class: 'seg style-seg' },
+    [
+      ['illuminated', 'Illuminated'],
+      ['plain', 'Plain'],
+    ].map(([v, label]) =>
+      h('button', { type: 'button', 'data-style': v, onclick: () => { prefs.pdfStyle = v; savePrefs(); update(); } }, label)
+    )
+  );
+  const styleField = h('div', { class: 'field' }, h('span', {}, 'Page style'), styleSeg);
   const widthField = h('label', { class: 'field' }, h('span', {}, 'Line width'), widthSel);
 
   const update = () => {
     $$('.format-seg button', dlgContent).forEach((b) => b.classList.toggle('on', b.dataset.f === format));
     pageField.hidden = format !== 'pdf';
+    styleField.hidden = format !== 'pdf';
+    $$('button', styleSeg).forEach((b) => b.classList.toggle('on', b.dataset.style === (prefs.pdfStyle || 'illuminated')));
     widthField.hidden = format !== 'txt';
     const width = format === 'pdf' ? (prefs.pageSize === 'letter' ? 85 : 82) : Number(prefs.txtWidth);
     preview.textContent = songToText(song, { width });
@@ -619,19 +634,23 @@ function exportDialog(song) {
     canShare ? h('button', { type: 'button', class: 'btn', onclick: doShare }, 'Share…') : null,
     h('button', { type: 'button', class: 'btn primary', onclick: doDownload }, 'Download')
   );
-  const dlgContent = h('div', {}, seg, pageField, widthField, h('div', { class: 'preview-wrap' }, preview), actions);
+  const dlgContent = h('div', {}, seg, styleField, pageField, widthField, h('div', { class: 'preview-wrap' }, preview), actions);
   update();
   modal({ title: 'Export', content: [dlgContent], buttons: [], className: 'export' });
 }
 
 // ---------------------------------------------------------------- editor rendering
+function metaSummary(song) {
+  const name = tuningName(song.tuning);
+  const tuning = name === 'Standard' ? 'Standard tuning' : name === 'Custom' ? tuningText(song.tuning) : `${name} (${tuningText(song.tuning)})`;
+  return [tuning, song.capo ? `Capo ${song.capo}` : '', `${song.tempo} BPM`].filter(Boolean).join(' · ');
+}
+
 function renderEditor() {
   if (!editor) return;
   const song = editor.song;
   $('#title-text').textContent = song.title || 'Untitled tab';
-  $('#meta-text').textContent = [tuningName(song.tuning) === 'Standard' ? 'Standard' : tuningText(song.tuning), song.capo ? `Capo ${song.capo}` : '', `${song.tempo} BPM`]
-    .filter(Boolean)
-    .join(' · ');
+  $('#meta-text').textContent = metaSummary(song);
   $('#btn-undo').disabled = !editor.undoStack.length;
   $('#btn-redo').disabled = !editor.redoStack.length;
   $('#btn-play').classList.toggle('playing', !!playing);
@@ -663,7 +682,13 @@ function renderSheet() {
   const n = song.tuning.length;
   const rhythm = !!song.rhythm;
   const rh = (inner = '') => (rhythm ? `<div class="rh">${inner}</div>` : '');
-  let html = '';
+  const title = song.title || 'Untitled tab';
+  const [initial, ...restOfTitle] = [...title];
+  let html = `<button class="folio-head" data-act="info" aria-label="Edit song details">
+    <span class="illum big" aria-hidden="true"><span>${esc(initial)}</span></span>
+    <span class="folio-title"><span class="ft"><span class="sr-only">${esc(initial)}</span>${esc(restOfTitle.join(''))}</span>${
+      song.artist ? `<span class="fa">by ${esc(song.artist)}</span>` : ''
+    }<span class="fm">${esc(metaSummary(song))}</span></span></button>`;
   song.sections.forEach((sec, si) => {
     const active = si === cursor.sec;
     let lastContent = -1;
@@ -671,7 +696,7 @@ function renderSheet() {
       if (!isEmptyNote(c)) lastContent = i;
     });
     html += `<section class="tab-section${active ? ' active' : ''}" data-sec="${si}">`;
-    html += `<div class="section-head"><button class="section-name" data-act="rename" data-sec="${si}">${esc(sec.name)}</button><button class="icon-btn small" data-act="secmenu" data-sec="${si}" aria-label="Section options">⋯</button></div>`;
+    html += `<div class="section-head"><button class="section-name" data-act="rename" data-sec="${si}"><span class="lomb lomb-${si % 2}">${esc([...sec.name][0] || '')}</span>${esc([...sec.name].slice(1).join(''))}</button><button class="icon-btn small" data-act="secmenu" data-sec="${si}" aria-label="Section options">⋯</button></div>`;
     html += `<div class="staff" style="--n:${n}">`;
     html += `<div class="col names" data-act="tuning" role="button" aria-label="Change tuning" title="Change tuning"><div class="lbl"><span>tune</span></div>${labels
       .map((l, i) => ({ l, i }))
@@ -714,6 +739,7 @@ function renderSheet() {
     html += '</section>';
   });
   html += `<button class="btn add-section" data-act="addsec">+ Add section</button>`;
+  html += `<div class="colophon"><img src="ornaments/snail.svg" alt="" width="150" height="89" /><p>Here endeth the tab</p></div>`;
   html += `<div class="sheet-spacer"></div>`;
   const sheet = $('#sheet');
   sheet.innerHTML = html;
@@ -1142,6 +1168,8 @@ $('#sheet').addEventListener('click', (e) => {
         return addSection();
       case 'tuning':
         return tuningDialog();
+      case 'info':
+        return songInfoDialog(editor.song);
       case 'label': {
         const colEl = act.closest('.col');
         const sec = Number(colEl.dataset.sec);

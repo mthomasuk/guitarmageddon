@@ -61,17 +61,34 @@ function wrapHelv(text, size, maxW) {
   return out;
 }
 
-/** Build the PDF for a song. Returns a Uint8Array. */
-export function songToPdf(song, { pageSize = 'a4' } = {}) {
+// Manuscript colours (RGB 0..1): iron-gall ink, vermilion, lapis, gold.
+const INK = [0.16, 0.1, 0.05];
+const RED = [0.66, 0.15, 0.11];
+const LAPIS = [0.12, 0.24, 0.53];
+const GOLD = [0.83, 0.64, 0.23];
+const GOLD_LIGHT = [0.95, 0.84, 0.5];
+
+const rgb = (c, op) => `${c.map(num).join(' ')} ${op}`;
+
+/**
+ * Build the PDF for a song. Returns a Uint8Array.
+ * style: 'illuminated' (manuscript look: ruled frame, gilt initial, rubrics) or 'plain'.
+ */
+export function songToPdf(song, { pageSize = 'a4', style = 'illuminated' } = {}) {
   const [W, H] = PAGE_SIZES[pageSize] || PAGE_SIZES.a4;
-  const M = 48; // side margin
-  const TOP = 56;
-  const BOTTOM = 56;
+  const fancy = style !== 'plain';
+  const M = fancy ? 54 : 48; // side margin (inside the frame when illuminated)
+  const TOP = fancy ? 62 : 56;
+  const BOTTOM = fancy ? 62 : 56;
   const TAB_SIZE = 10;
   const CHAR_W = TAB_SIZE * 0.6; // Courier advance width
   const LEAD = 11.5;
   const usableW = W - 2 * M;
   const maxChars = Math.floor(usableW / CHAR_W);
+  const F = fancy
+    ? { body: 'F6', bold: 'F7', italic: 'F8' } // Times
+    : { body: 'F1', bold: 'F2', italic: 'F5' }; // Helvetica
+  const width = (t, size) => helvWidth(t, size) * (fancy ? 0.93 : 1); // Times runs a little narrower
 
   const pages = [];
   let ops = null;
@@ -80,90 +97,164 @@ export function songToPdf(song, { pageSize = 'a4' } = {}) {
     ops = [];
     pages.push(ops);
     y = H - TOP;
+    if (fancy) drawFrame();
   };
-  const text = (x, yy, font, size, str, gray = 0) => {
-    ops.push(`${gray ? num(gray) : '0'} g BT /${font} ${size} Tf ${num(x)} ${num(yy)} Td ${pdfString(str)} Tj ET`);
+  /** color: a gray level (0 = black) or an [r, g, b] triple */
+  const text = (x, yy, font, size, str, color = 0) => {
+    const fill = Array.isArray(color) ? rgb(color, 'rg') : `${num(color)} g`;
+    ops.push(`${fill} BT /${font} ${size} Tf ${num(x)} ${num(yy)} Td ${pdfString(str)} Tj ET`);
   };
   const ensure = (h) => {
     if (y - h < BOTTOM) newPage();
   };
+  const rect = (x, yy, w, h, op) => `${num(x)} ${num(yy)} ${num(w)} ${num(h)} re ${op}`;
+  const diamond = (cx, cy, r, color) =>
+    ops.push(`${rgb(color, 'rg')} ${num(cx)} ${num(cy + r)} m ${num(cx + r)} ${num(cy)} l ${num(cx)} ${num(cy - r)} l ${num(cx - r)} ${num(cy)} l f`);
+
+  function drawFrame() {
+    // Double ruling, vermilion outside and lapis inside, with gilt corner lozenges.
+    ops.push(`${rgb(RED, 'RG')} 1.1 w ${rect(24, 24, W - 48, H - 48, 'S')}`);
+    ops.push(`${rgb(LAPIS, 'RG')} 0.5 w ${rect(28.5, 28.5, W - 57, H - 57, 'S')}`);
+    for (const [cx, cy] of [[24, 24], [W - 24, 24], [24, H - 24], [W - 24, H - 24]]) diamond(cx, cy, 4.5, GOLD);
+  }
+
+  /** Gilt initial on a lapis ground with a dotted diaper, like the app's title. */
+  function illuminatedInitial(x, top, size, letter) {
+    const yy = top - size;
+    ops.push(`${rgb(RED, 'RG')} 1 w ${rect(x - 3.5, yy - 3.5, size + 7, size + 7, 'S')}`);
+    ops.push(`${rgb(GOLD, 'rg')} ${rect(x - 2, yy - 2, size + 4, size + 4, 'f')}`);
+    ops.push(`${rgb(LAPIS, 'rg')} ${rect(x, yy, size, size, 'f')}`);
+    const step = size / 6;
+    for (let i = 1; i < 6; i++) for (let j = 1; j < 6; j++) diamond(x + i * step, yy + j * step, 0.9, GOLD_LIGHT);
+    const fs = size * 0.76;
+    const lw = width(letter, fs) * 1.08;
+    // a soft shadow then the gold letter
+    text(x + (size - lw) / 2 + 1, yy + size * 0.24 - 1, F.bold, fs, letter, [0.05, 0.1, 0.25]);
+    text(x + (size - lw) / 2, yy + size * 0.24, F.bold, fs, letter, GOLD_LIGHT);
+  }
 
   newPage();
 
-  // Header
-  const titleLines = wrapHelv(song.title || 'Untitled tab', 22, usableW * 0.9);
-  for (const t of titleLines) {
-    y -= 22;
-    text(M, y, 'F2', 22, t);
-    y -= 4;
+  // ---------- header
+  const title = song.title || 'Untitled tab';
+  if (fancy) {
+    const SIZE = 56;
+    const [first, ...rest] = [...title];
+    illuminatedInitial(M, y + 6, SIZE, first.toUpperCase());
+    const tx = M + SIZE + 14;
+    let ty = y - 20;
+    const lines = wrapHelv(rest.join('') || ' ', 24, usableW - SIZE - 20);
+    lines.forEach((t, i) => {
+      text(tx, ty, F.bold, 24, t, INK);
+      if (i < lines.length - 1) ty -= 26;
+    });
+    if (song.artist) {
+      ty -= 17;
+      text(tx, ty, F.italic, 13, song.artist, RED);
+    }
+    ty -= 14;
+    text(tx, ty, F.body, 9.5, metaLine(song), 0.38);
+    y = Math.min(ty, y + 6 - SIZE) - 14;
+    ops.push(`${rgb(RED, 'RG')} 0.8 w ${num(M)} ${num(y)} m ${num(W - M)} ${num(y)} l S`);
+    ops.push(`${rgb(RED, 'RG')} 0.4 w ${num(M)} ${num(y - 2.5)} m ${num(W - M)} ${num(y - 2.5)} l S`);
+    y -= 18;
+  } else {
+    for (const t of wrapHelv(title, 22, usableW * 0.9)) {
+      y -= 22;
+      text(M, y, F.bold, 22, t);
+      y -= 4;
+    }
+    if (song.artist) {
+      y -= 14;
+      text(M, y, F.body, 13, song.artist, 0.25);
+    }
+    y -= 16;
+    text(M, y, F.body, 9.5, metaLine(song), 0.4);
+    y -= 10;
+    ops.push(`0.8 G 0.6 w ${num(M)} ${num(y)} m ${num(W - M)} ${num(y)} l S`);
+    y -= 16;
   }
-  if (song.artist) {
-    y -= 14;
-    text(M, y, 'F1', 13, song.artist, 0.25);
-  }
-  y -= 16;
-  text(M, y, 'F1', 9.5, metaLine(song), 0.4);
-  y -= 10;
-  ops.push(`0.8 G 0.6 w ${num(M)} ${num(y)} m ${num(W - M)} ${num(y)} l S`);
-  y -= 16;
 
-  for (const sec of song.sections) {
+  // ---------- sections
+  song.sections.forEach((sec, si) => {
     const systems = layoutSection(sec, song.tuning, maxChars, { rhythm: !!song.rhythm });
     const sysHeight = (s) => (s.label ? LEAD : 0) + (s.rhythm ? LEAD : 0) + s.lines.length * LEAD + 10;
     // Keep the heading with the first row of tab.
     ensure(26 + (systems.length ? sysHeight(systems[0]) : 14));
     y -= 14;
-    text(M, y, 'F2', 12, sec.name);
+    if (fancy) {
+      // Rubric: a pilcrow alternating lapis / vermilion, then the name in red.
+      const mark = '¶ ';
+      text(M, y, F.bold, 13.5, mark, si % 2 ? RED : LAPIS);
+      text(M + width(mark, 13.5) + 1, y, F.bold, 13.5, sec.name, RED);
+    } else {
+      text(M, y, F.bold, 12, sec.name);
+    }
     y -= 10;
     for (const sys of systems) {
       ensure(sysHeight(sys));
       if (sys.label) {
         y -= LEAD;
-        text(M, y, 'F4', TAB_SIZE, sys.label, 0.15);
+        text(M, y, 'F4', TAB_SIZE, sys.label, fancy ? RED : 0.15);
       }
       for (const line of sys.lines) {
         y -= LEAD;
-        text(M, y, 'F3', TAB_SIZE, line);
+        text(M, y, 'F3', TAB_SIZE, line, fancy ? INK : 0);
       }
       if (sys.rhythm) {
         y -= LEAD;
-        text(M, y, 'F4', TAB_SIZE, sys.rhythm, 0.35);
+        text(M, y, 'F4', TAB_SIZE, sys.rhythm, fancy ? LAPIS : 0.35);
       }
       y -= 10;
     }
     if (sec.notes) {
-      for (const line of wrapHelv(sec.notes, 10, usableW)) {
+      for (const line of wrapHelv(sec.notes, 10.5, usableW)) {
         ensure(13);
         y -= 13;
-        if (line) text(M, y, 'F5', 10, line, 0.2);
+        if (line) text(M, y, F.italic, fancy ? 10.5 : 10, line, fancy ? INK : 0.2);
       }
       y -= 6;
     }
     y -= 8;
-  }
+  });
 
+  // ---------- legend
   const legend = usedLegend(song);
   if (legend.length) {
     const legendLines = legend.flatMap((l) => wrapWords(l, Math.floor(usableW / (8.5 * 0.6))));
     ensure(20 + legendLines.length * 12);
     y -= 12;
-    text(M, y, 'F2', 9, 'Legend', 0.35);
+    text(M, y, F.bold, 9, 'Legend', fancy ? RED : 0.35);
     for (const l of legendLines) {
       y -= 12;
       text(M, y, 'F3', 8.5, l, 0.35);
     }
   }
 
-  // Footers
-  const footLeft = [song.title || 'Untitled tab', song.artist].filter(Boolean).join(' — ');
-  pages.forEach((p, i) => {
-    ops = p;
-    text(M, 30, 'F1', 8, footLeft, 0.55);
-    const right = `Page ${i + 1} of ${pages.length}`;
-    text(W - M - helvWidth(right, 8), 30, 'F1', 8, right, 0.55);
+  // ---------- colophon
+  if (fancy) {
+    ensure(34);
+    y -= 26;
+    const end = 'Here endeth the tab';
+    const w = width(end, 11);
+    diamond(W / 2 - w / 2 - 12, y + 3.5, 3, GOLD);
+    text(W / 2 - w / 2, y, F.italic, 11, end, RED);
+    diamond(W / 2 + w / 2 + 12, y + 3.5, 3, GOLD);
+  }
+
+  // ---------- footers
+  const footLeft = [title, song.artist].filter(Boolean).join(' — ');
+  const footY = fancy ? 38 : 30;
+  pages.forEach((pg, i) => {
+    ops = pg;
+    const font = fancy ? F.italic : F.body;
+    const color = fancy ? [0.45, 0.33, 0.22] : 0.55;
+    text(M, footY, font, 8.5, footLeft, color);
+    const right = fancy ? `folio ${i + 1} of ${pages.length}` : `Page ${i + 1} of ${pages.length}`;
+    text(W - M - width(right, 8.5), footY, font, 8.5, right, color);
   });
 
-  return writePdf(pages, W, H, song.title || 'Untitled tab');
+  return writePdf(pages, W, H, title);
 }
 
 function writePdf(pages, W, H, title) {
@@ -174,7 +265,7 @@ function writePdf(pages, W, H, title) {
   };
   const catalog = add(null);
   const pagesObj = add(null);
-  const fonts = ['Helvetica', 'Helvetica-Bold', 'Courier', 'Courier-Bold', 'Helvetica-Oblique'].map((f) =>
+  const fonts = ['Helvetica', 'Helvetica-Bold', 'Courier', 'Courier-Bold', 'Helvetica-Oblique', 'Times-Roman', 'Times-Bold', 'Times-Italic'].map((f) =>
     add(`<< /Type /Font /Subtype /Type1 /BaseFont /${f} /Encoding /WinAnsiEncoding >>`)
   );
   const fontRes = fonts.map((id, i) => `/F${i + 1} ${id} 0 R`).join(' ');
