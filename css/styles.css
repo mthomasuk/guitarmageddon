@@ -511,6 +511,71 @@ button:disabled {
   padding: 8px 8px 2px;
   border-radius: 8px;
 }
+/* Notes / lyrics: a fold toggle above the text, so long lyrics can be tucked away. */
+.notes-block {
+  margin-top: 4px;
+}
+.notes-toggle {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 8px 0;
+  text-align: left;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-radius: 8px;
+}
+.notes-toggle .chev {
+  flex: none;
+  width: 0;
+  height: 0;
+  border-left: 4.5px solid transparent;
+  border-right: 4.5px solid transparent;
+  border-top: 6px solid currentColor;
+  transform: translateY(-1px);
+  transition: transform 0.15s ease;
+}
+.notes-block.folded .notes-toggle .chev {
+  transform: translateY(-1px) rotate(-90deg);
+}
+.notes-label {
+  flex: none;
+}
+.notes-peek {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 400;
+  font-style: italic;
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: 14px;
+}
+.notes-count {
+  flex: none;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  opacity: 0.8;
+}
+.notes-block.folded .notes-toggle {
+  padding-bottom: 4px;
+}
+.notes-block .section-notes {
+  padding-top: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .notes-toggle .chev {
+    transition: none;
+  }
+}
 .section-notes.empty {
   font-style: normal;
   font-size: 13px;

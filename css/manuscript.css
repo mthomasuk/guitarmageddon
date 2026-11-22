@@ -425,6 +425,21 @@ body {
   font-style: italic;
   color: var(--muted);
 }
+/* The fold toggle reads as a rubric: small capitals in vermilion. */
+.notes-toggle {
+  font-family: var(--caps);
+  font-weight: 400;
+  font-size: 15px;
+  letter-spacing: 0.03em;
+  text-transform: none;
+  color: var(--accent);
+}
+.notes-peek,
+.notes-count {
+  font-family: var(--sans);
+  color: var(--muted);
+  font-size: 16px;
+}
 .add-section {
   border: 1.5px dashed var(--gold-dark);
   color: var(--gold-dark);
