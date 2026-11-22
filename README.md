@@ -51,18 +51,24 @@ The app asks the browser to treat its storage as persistent, so it isn't cleared
 
 ## Running locally
 
-ES modules need to be served over HTTP:
-
 ```sh
-npm start          # python3 -m http.server 8080, then open http://localhost:8080
+npm start          # node server.js, then open http://localhost:8080
 npm test           # node's built-in test runner, no install needed
 ```
 
-To try it on your phone, open your computer's LAN address (e.g. `http://192.168.1.20:8080`) on the same Wi-Fi network.
+To try it on your phone, open your computer's LAN address (e.g. `http://192.168.1.20:8080`) on the same Wi-Fi network. Offline mode and "Add to Home Screen" need HTTPS, so test those on the deployed site.
 
-## Deploying
+## Deploying (Railway)
 
-`.github/workflows/pages.yml` runs the tests and publishes the site to GitHub Pages on every push to `main`. Turn it on under **Settings → Pages → Source: GitHub Actions**. The app also works from any other static host.
+`server.js` is a dependency-free Node static server. It listens on `$PORT`, serves only the app's files (`index.html`, `css/`, `js/`, `icons/`, `manifest.webmanifest`, `sw.js`), and adds gzip, ETags and security headers. `railway.json` tells Railway how to start it and to health-check `/healthz`.
+
+1. In Railway: **New Project → Deploy from GitHub repo**, and pick this repo.
+2. In the service's **Settings → Source**, set the branch Railway deploys from (e.g. `main`). Optionally turn on **Wait for CI** so a deploy only happens after the GitHub test workflow passes.
+3. Under **Settings → Networking**, click **Generate Domain** to get an HTTPS `*.up.railway.app` URL, or add your own domain.
+
+No environment variables, database or volume are needed: tabs live in each user's browser storage, so redeploying never touches them. Every push to the deploy branch redeploys.
+
+Any other Node host works the same way (`npm start`), and so does any static host serving the files listed above.
 
 ## Project layout
 
@@ -80,4 +86,6 @@ js/chords.js          chord shapes
 js/storage.js         localStorage persistence (tabs, sessions, preferences)
 sw.js                 offline cache
 tests/                node:test unit tests
+server.js             static server for Railway / any Node host
+railway.json          Railway start command + health check
 ```
