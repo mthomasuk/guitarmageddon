@@ -142,7 +142,9 @@ export function wrapWords(text, width) {
       continue;
     }
     let line = '';
-    for (const word of para.split(/\s+/).filter(Boolean)) {
+    // A word longer than a whole line is split into line-sized pieces.
+    const words = para.split(/\s+/).filter(Boolean).flatMap((w) => (w.length > width ? w.match(new RegExp(`.{1,${width}}`, 'gu')) : [w]));
+    for (const word of words) {
       if (!line) line = word;
       else if ((line + ' ' + word).length <= width) line += ' ' + word;
       else {

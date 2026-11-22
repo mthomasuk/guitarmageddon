@@ -44,7 +44,22 @@ function num(n) {
 }
 
 /** Word-wrap using Helvetica widths; scale > 1 leaves room for fonts with wider glyphs. */
-function wrapHelv(text, size, maxW, scale = 1) {
+export function wrapHelv(text, size, maxW, scale = 1) {
+  const fits = (t) => helvWidth(t, size) * scale <= maxW;
+  // A word too wide for a whole line is split into pieces that fit.
+  const pieces = (word) => {
+    if (fits(word)) return [word];
+    const parts = [];
+    let cur = '';
+    for (const ch of word) {
+      if (cur && !fits(cur + ch)) {
+        parts.push(cur);
+        cur = ch;
+      } else cur += ch;
+    }
+    if (cur) parts.push(cur);
+    return parts;
+  };
   const out = [];
   for (const para of String(text).split('\n')) {
     if (!para.trim()) {
@@ -52,9 +67,9 @@ function wrapHelv(text, size, maxW, scale = 1) {
       continue;
     }
     let line = '';
-    for (const word of para.split(/\s+/).filter(Boolean)) {
+    for (const word of para.split(/\s+/).filter(Boolean).flatMap(pieces)) {
       const next = line ? line + ' ' + word : word;
-      if (line && helvWidth(next, size) * scale > maxW) {
+      if (line && !fits(next)) {
         out.push(line);
         line = word;
       } else line = next;

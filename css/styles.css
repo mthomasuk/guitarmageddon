@@ -503,13 +503,26 @@ button:disabled {
 .section-notes {
   display: block;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   text-align: left;
   white-space: pre-wrap;
+  /* Lyrics wrap at the phone's width; only an Enter starts a new line on purpose. */
+  overflow-wrap: anywhere;
+  word-break: break-word;
   color: var(--muted);
   font-style: italic;
   font-size: 14px;
   padding: 8px 8px 2px;
   border-radius: 8px;
+}
+/* Inner block: WebKit can size a <button>'s own text to its content rather than its box. */
+.notes-text {
+  display: block;
+  max-width: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 /* Notes / lyrics: a fold toggle above the text, so long lyrics can be tucked away. */
 .notes-block {
