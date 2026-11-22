@@ -11,14 +11,49 @@ export function audioContext() {
   if (!ctx) {
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return null;
+    // iOS plays Web Audio as "ambient" sound, which the ringer/silent switch mutes. Ask for
+    // "playback" like a music app (Safari 17+); older iOS gets the <audio> trick in unlockAudio.
+    try {
+      if (navigator.audioSession) navigator.audioSession.type = 'playback';
+    } catch {
+      /* not supported */
+    }
     ctx = new AC();
     master = ctx.createGain();
     master.gain.value = 0.6;
     const comp = ctx.createDynamicsCompressor();
     master.connect(comp).connect(ctx.destination);
   }
-  if (ctx.state === 'suspended') ctx.resume();
+  // 'suspended' before the first tap, or 'interrupted' on iOS after a call, lock or app switch.
+  if (ctx.state !== 'running' && ctx.state !== 'closed') Promise.resolve(ctx.resume()).catch(() => {});
   return ctx;
+}
+
+let silentTag = null;
+
+/**
+ * Call from inside a user gesture (tap, click, key). Resumes the context and, on iOS without
+ * navigator.audioSession, plays silent HTML audio so the silent switch doesn't mute the synth.
+ */
+export function unlockAudio() {
+  const c = audioContext();
+  if (!c) return;
+  // Starting a source within the gesture is what actually unlocks older WebKit.
+  const src = c.createBufferSource();
+  src.buffer = c.createBuffer(1, 1, c.sampleRate);
+  src.connect(c.destination);
+  src.start(0);
+  if (!navigator.audioSession && typeof Audio !== 'undefined' && !silentTag) {
+    try {
+      silentTag = new Audio('audio/silence.wav'); // a static file: the CSP allows media from 'self' only
+      silentTag.setAttribute('x-webkit-airplay', 'deny');
+      silentTag.preload = 'auto';
+      const p = silentTag.play();
+      if (p) p.catch(() => (silentTag = null)); // try again on the next gesture
+    } catch {
+      silentTag = null;
+    }
+  }
 }
 
 function pluckBuffer(midi) {
@@ -99,6 +134,25 @@ export function playSong(song, from, { onStep, onDone } = {}) {
   stopSong();
   const c = audioContext();
   if (!c) return;
+  // resume() is asynchronous: schedule against the clock only once it is running, or the
+  // notes land in the past and iOS drops them.
+  if (c.state !== 'running') {
+    const token = (playToken = {});
+    Promise.resolve(c.resume())
+      .catch(() => {})
+      .then(() => {
+        if (playToken !== token) return; // stopped (or restarted) meanwhile
+        if (c.state === 'running') scheduleSong(c, song, from, { onStep, onDone });
+        else onDone && onDone();
+      });
+    return;
+  }
+  scheduleSong(c, song, from, { onStep, onDone });
+}
+
+let playToken = null;
+
+function scheduleSong(c, song, from, { onStep, onDone }) {
   const beat = 60 / (Number(song.tempo) || 100);
   let t = 0.08;
   const start = c.currentTime;
@@ -120,6 +174,7 @@ export function playSong(song, from, { onStep, onDone } = {}) {
 }
 
 export function stopSong() {
+  playToken = null;
   timers.forEach(clearTimeout);
   timers = [];
   active.forEach((s) => {

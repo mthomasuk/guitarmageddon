@@ -1,5 +1,5 @@
 // Offline support: serve the app shell from cache, refresh it in the background.
-const CACHE = 'guitarmageddon-v4';
+const CACHE = 'guitarmageddon-v5';
 const SHELL = [
   './',
   'index.html',
@@ -14,6 +14,7 @@ const SHELL = [
   'ornaments/vine.svg',
   'ornaments/corner.svg',
   'ornaments/snail.svg',
+  'audio/silence.wav',
   'js/app.js',
   'js/audio.js',
   'js/chords.js',
