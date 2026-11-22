@@ -101,6 +101,7 @@ export class Editor {
     this.cursor = { sec, col, str };
     this.pendingJoin = null;
     this.clampCursor();
+    this.inheritLength();
     this.followLength();
     this.onChange({ content: false });
   }
@@ -110,9 +111,6 @@ export class Editor {
   isFresh(i = this.cursor.col, cols = this.section.columns) {
     for (let k = i; k < cols.length; k++) if (!isEmptyNote(cols[k])) return false;
     return true;
-  }
-  hasCurrentLength(col) {
-    return col.type === 'note' && (col.dur || DEFAULT_DUR) === this.duration && !!col.dot === this.dot;
   }
   setLength(col, dur, dot) {
     if (col.type !== 'note') return;
@@ -170,11 +168,12 @@ export class Editor {
     this.pendingJoin = null;
     const cols = this.section.columns;
     const next = this.cursor.col + 1;
-    // Growing the section, or stepping into unwritten space that needs the current length (a rest).
-    if (next >= cols.length || (this.isFresh(next) && !this.hasCurrentLength(cols[next]))) {
-      return this.commit(() => this.advance(), { keepSelection: true });
-    }
+    // Growing the section or giving unwritten space the current length is just cursor movement:
+    // it is not an edit, so it must not clear redo or mark the song changed. The next real edit's
+    // undo snapshot picks it up.
+    if (next >= cols.length) cols.push(emptyColumn(this.strings, this.duration, this.dot));
     this.cursor.col = next;
+    this.inheritLength();
     this.followLength();
     this.onChange({ content: false });
   }
@@ -432,10 +431,11 @@ export class Editor {
   selectBar() {
     const cols = this.section.columns;
     const c = this.cursor.col;
-    let from = cols[c].type === 'bar' ? c - 1 : c;
-    while (from > 0 && cols[from - 1].type !== 'bar') from--;
-    from = Math.max(0, from);
-    let to = cols[c].type === 'bar' ? c : c;
+    let from = c;
+    // On a bar line, select the measure it closes, unless the column before is also a bar (an empty measure).
+    if (cols[c].type === 'bar' && c > 0 && cols[c - 1].type !== 'bar') from = c - 1;
+    if (cols[from].type !== 'bar') while (from > 0 && cols[from - 1].type !== 'bar') from--;
+    let to = c;
     while (to < cols.length && cols[to].type !== 'bar') to++;
     if (to >= cols.length) {
       to = cols.length - 1;
@@ -499,8 +499,8 @@ export class Editor {
     );
   }
   /**
-   * Paste columns: replaces the selection if there is one, fills an empty column at the cursor,
-   * or goes after the column under the cursor. The cursor ends just after the pasted music.
+   * Paste columns: replaces the selection if there is one, fills unwritten space at the cursor,
+   * or goes after the column under the cursor (so a rest in the music is kept). The cursor ends just after the pasted music.
    */
   paste(columns) {
     if (!columns || !columns.length) return;
@@ -512,7 +512,7 @@ export class Editor {
         this.cursor = { ...this.cursor, sec: r.sec };
         this.section.columns.splice(r.from, r.to - r.from + 1, ...block);
         start = r.from;
-      } else if (isEmptyNote(this.column)) {
+      } else if (this.isFresh()) {
         start = this.cursor.col;
         this.section.columns.splice(start, 1, ...block);
       } else {
