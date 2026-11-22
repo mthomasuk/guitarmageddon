@@ -149,6 +149,7 @@ function showHelp() {
         li('Note lengths:', 'pick ¼, ⅛ and so on (or dotted) before tapping notes. They carry on until you change them, and playback follows them.'),
         li('Copy & repeat:', 'tap Select (or long-press the tab), tap more columns or Whole bar, then Copy, Repeat, Cut or Delete. Paste goes where the cursor is.'),
         li('Chords', 'tab drops in a full shape with its name above it.'),
+        li('Notes / lyrics:', 'add them under any section. Tap the Notes / lyrics heading to fold them away; ⋯ folds every section at once.'),
         li('Tuning:', 'tap the string names at the start of the tab to retune string by string, or pick Drop D, DADGAD and more.'),
         li('Export', 'gives you a printable PDF or a plain-text .txt. Everything saves on this device as you go, and reopens where you left off.')
       ),
@@ -161,6 +162,9 @@ function showHelp() {
 // ---------------------------------------------------------------- state
 let editor = null;
 let playing = null; // {sec, col} while playing
+// Sections (by id) whose notes/lyrics are folded away. View state: kept with the editing session,
+// not in the song, so it stays out of undo and doesn't affect exports.
+let foldedNotes = new Set();
 let saveTimer = null;
 let renderQueued = false;
 let lastCursorKey = '';
@@ -188,6 +192,7 @@ function flushSave() {
     dot: editor.dot,
     undo: editor.undoStack,
     redo: editor.redoStack,
+    foldedNotes: [...foldedNotes],
     sheetScroll: $('#sheet').scrollTop,
     fretScroll: $('#panel-fretboard .fretboard')?.scrollLeft || 0,
   });
@@ -230,6 +235,7 @@ function openEditor(song) {
     editor.mode = prefs.mode;
     songDirty = false;
     session = store.loadSession(song.id);
+    foldedNotes = new Set(Array.isArray(session?.foldedNotes) ? session.foldedNotes : []);
     if (session) {
       if (session.cursor) editor.cursor = { ...editor.cursor, ...session.cursor };
       editor.undoStack = Array.isArray(session.undo) ? session.undo : [];
@@ -731,11 +737,17 @@ function renderSheet() {
       html += '</div>';
     });
     html += '</div>';
-    html += sec.notes
-      ? `<button class="section-notes" data-act="notes" data-sec="${si}">${esc(sec.notes)}</button>`
-      : active
-        ? `<button class="section-notes empty" data-act="notes" data-sec="${si}">+ Add notes or lyrics</button>`
-        : '';
+    if (sec.notes) {
+      const folded = foldedNotes.has(sec.id);
+      const lines = sec.notes.split('\n').filter((l) => l.trim());
+      const peek = folded ? `<span class="notes-peek">${esc(lines[0] || '')}</span>${lines.length > 1 ? `<span class="notes-count">${lines.length} lines</span>` : ''}` : '';
+      html += `<div class="notes-block${folded ? ' folded' : ''}">`;
+      html += `<button class="notes-toggle" data-act="foldnotes" data-sec="${si}" aria-expanded="${!folded}" aria-controls="notes-${esc(sec.id)}"><span class="chev" aria-hidden="true"></span><span class="notes-label">Notes / lyrics</span>${peek}</button>`;
+      if (!folded) html += `<button class="section-notes" id="notes-${esc(sec.id)}" data-act="notes" data-sec="${si}">${esc(sec.notes)}</button>`;
+      html += '</div>';
+    } else if (active) {
+      html += `<button class="section-notes empty" data-act="notes" data-sec="${si}">+ Add notes or lyrics</button>`;
+    }
     html += '</section>';
   });
   html += `<button class="btn add-section" data-act="addsec">+ Add section</button>`;
@@ -1061,6 +1073,9 @@ async function sectionMenu(i) {
   const a = await actionSheet(sec.name, [
     { label: 'Rename', value: 'rename' },
     { label: sec.notes ? 'Edit notes / lyrics' : 'Add notes / lyrics', value: 'notes' },
+    ...(editor.song.sections.some((s) => s.notes)
+      ? [{ label: allNotesFolded() ? 'Show notes in every section' : 'Fold notes in every section', value: 'foldall' }]
+      : []),
     { label: 'Duplicate section', value: 'dup' },
     { label: 'Move up', value: 'up', disabled: i === 0 },
     { label: 'Move down', value: 'down', disabled: i === last },
@@ -1068,6 +1083,7 @@ async function sectionMenu(i) {
   ]);
   if (a === 'rename') renameSection(i);
   else if (a === 'notes') editNotes(i);
+  else if (a === 'foldall') foldAllNotes(!allNotesFolded());
   else if (a === 'dup') editor.duplicateSection(i);
   else if (a === 'up') editor.moveSection(i, -1);
   else if (a === 'down') editor.moveSection(i, 1);
@@ -1080,8 +1096,27 @@ async function renameSection(i) {
 }
 
 async function editNotes(i) {
-  const notes = await promptText('Notes / lyrics', editor.song.sections[i].notes, { multiline: true, placeholder: 'Lyrics, strumming pattern, “repeat 4x”…' });
-  if (notes !== null) editor.setSectionNotes(i, notes.trim());
+  const sec = editor.song.sections[i];
+  const notes = await promptText('Notes / lyrics', sec.notes, { multiline: true, placeholder: 'Lyrics, strumming pattern, “repeat 4x”…' });
+  if (notes === null) return;
+  foldedNotes.delete(sec.id); // show what was just written
+  editor.setSectionNotes(i, notes.trim());
+  scheduleRender();
+}
+
+function toggleNotes(i) {
+  const id = editor.song.sections[i].id;
+  if (!foldedNotes.delete(id)) foldedNotes.add(id);
+  scheduleSave();
+  scheduleRender();
+}
+
+const allNotesFolded = () => editor.song.sections.every((s) => !s.notes || foldedNotes.has(s.id));
+
+function foldAllNotes(fold) {
+  for (const s of editor.song.sections) if (s.notes) fold ? foldedNotes.add(s.id) : foldedNotes.delete(s.id);
+  scheduleSave();
+  scheduleRender();
 }
 
 // ---------------------------------------------------------------- events
@@ -1181,6 +1216,8 @@ $('#sheet').addEventListener('click', (e) => {
         return sectionMenu(i);
       case 'notes':
         return editNotes(i);
+      case 'foldnotes':
+        return toggleNotes(i);
       case 'addsec':
         return addSection();
       case 'tuning':
