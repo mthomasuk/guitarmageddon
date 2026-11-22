@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#16120f" />
+    <meta name="description" content="Write guitar tabs on your phone. Tap the fretboard, hear the notes, export to PDF or TXT." />
+    <title>Guitarmageddon · Tab Maker</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Guitarmageddon" />
+    <link rel="stylesheet" href="css/styles.css" />
+    <script type="module" src="js/app.js"></script>
+  </head>
+  <body>
+    <!-- ============ LIBRARY ============ -->
+    <section id="library-view" class="view">
+      <header class="topbar">
+        <div class="brand">
+          <img src="icons/icon.svg" alt="" width="28" height="28" />
+          <span>Guitar<b>mageddon</b></span>
+        </div>
+        <button class="icon-btn" id="btn-help-lib" aria-label="How it works">?</button>
+      </header>
+      <main class="library-main">
+        <button id="btn-new" class="btn primary big">
+          <span class="plus">+</span> New tab
+        </button>
+        <h2 class="list-title" id="list-title">Your tabs</h2>
+        <ul id="song-list" class="song-list"></ul>
+        <div id="empty-library" class="empty-library" hidden>
+          <p>No tabs yet.</p>
+          <p class="muted">Tap <b>New tab</b>, then tap the fretboard to write notes. Everything saves automatically on this device.</p>
+        </div>
+      </main>
+    </section>
+
+    <!-- ============ EDITOR ============ -->
+    <section id="editor-view" class="view" hidden>
+      <header class="topbar editor-top">
+        <button class="icon-btn" id="btn-back" aria-label="Back to your tabs">
+          <svg viewBox="0 0 24 24" width="22" height="22"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button id="btn-info" class="title-btn" aria-label="Edit song details">
+          <span id="title-text">Untitled</span>
+          <small id="meta-text"></small>
+        </button>
+        <button class="icon-btn" id="btn-undo" aria-label="Undo">
+          <svg viewBox="0 0 24 24" width="20" height="20"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 010 12h-3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="icon-btn" id="btn-redo" aria-label="Redo">
+          <svg viewBox="0 0 24 24" width="20" height="20"><path d="M15 14l5-5-5-5M20 9H10a6 6 0 000 12h3" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="icon-btn" id="btn-play" aria-label="Play from cursor">
+          <svg class="i-play" viewBox="0 0 24 24" width="20" height="20"><path d="M7 4.5v15l12.5-7.5z" fill="currentColor"/></svg>
+          <svg class="i-stop" viewBox="0 0 24 24" width="20" height="20"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></svg>
+        </button>
+        <button class="btn accent small" id="btn-export">Export</button>
+      </header>
+
+      <main id="sheet" class="sheet" aria-label="Tab"></main>
+
+      <footer id="dock" class="dock">
+        <div class="dock-bar">
+          <div class="seg" role="tablist" aria-label="Input method">
+            <button role="tab" data-panel="fretboard">Fretboard</button>
+            <button role="tab" data-panel="keypad">Keypad</button>
+            <button role="tab" data-panel="chords">Chords</button>
+          </div>
+          <button id="btn-mode" class="mode-toggle" aria-label="Toggle note or chord entry">
+            <span data-mode="melody">Notes →</span>
+            <span data-mode="chord">Chord ⇅</span>
+          </button>
+          <button class="icon-btn small" id="btn-collapse" aria-label="Hide input panel">
+            <svg viewBox="0 0 24 24" width="18" height="18"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+        <div id="hint" class="hint" aria-live="polite"></div>
+        <div class="panel" id="panel-fretboard"></div>
+        <div class="panel" id="panel-keypad" hidden></div>
+        <div class="panel" id="panel-chords" hidden></div>
+        <div class="tech-row" id="tech-row" aria-label="Techniques"></div>
+        <div class="action-row">
+          <button class="act" id="act-left" aria-label="Previous column">
+            <svg viewBox="0 0 24 24" width="20" height="20"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button class="act" id="act-right" aria-label="Next column / add space">
+            <svg viewBox="0 0 24 24" width="20" height="20"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <small>space</small>
+          </button>
+          <button class="act" id="act-bar" aria-label="Insert bar line"><b>|</b><small>bar</small></button>
+          <button class="act" id="act-back" aria-label="Delete">
+            <svg viewBox="0 0 24 24" width="22" height="22"><path d="M9 5h11v14H9l-6-7z M12.5 9.5l5 5 M17.5 9.5l-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>
+          </button>
+          <button class="act" id="act-more" aria-label="Column options">
+            <svg viewBox="0 0 24 24" width="20" height="20"><circle cx="5" cy="12" r="2" fill="currentColor"/><circle cx="12" cy="12" r="2" fill="currentColor"/><circle cx="19" cy="12" r="2" fill="currentColor"/></svg>
+          </button>
+        </div>
+      </footer>
+    </section>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  </body>
+</html>
