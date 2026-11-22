@@ -48,9 +48,26 @@ Stepping right with **→** past the last note leaves a rest of the current leng
 
 The copied columns are saved, so you can paste into another section or another tab later, even after closing the app. Copying also puts the riff on the phone's clipboard as plain ASCII tab, ready to paste into a message. Pasting into a tab with a different number of strings adds or drops the lowest strings. **Repeat** inserts a copy right after the selection and selects the copy, so tapping it again keeps repeating.
 
+## Appearance
+
+The app is styled as an illuminated manuscript, with light and dark versions that follow your phone's setting:
+
+- **Materials**: vellum pages, iron-gall ink, vermilion rubrics, and lapis and gold leaf.
+- **Title**: a gilt drop cap on a lapis ground, with the rest of the title in blackletter.
+- **Sections**: Lombardic initials, alternating red and blue.
+- **Margins**: a vine border running down the page.
+- **Instrument**: a walnut-and-brass fretboard.
+- **Ending**: a lute-playing snail drollery at the end of every tab ("Here endeth the tab").
+
+Fonts are bundled so the app works offline and stays within its own content policy. All are SIL Open Font License; the licence texts are in `fonts/`.
+
+- [UnifrakturMaguntia](https://fonts.google.com/specimen/UnifrakturMaguntia) for blackletter headings.
+- [IM Fell English](https://fonts.google.com/specimen/IM+Fell+English) for text and small caps.
+- [Cinzel](https://fonts.google.com/specimen/Cinzel) for digits only, trimmed to 0–9. IM Fell's old-style "1" looks like an "I", which is a problem in a tab.
+
 ## Export
 
-- **PDF**: A4 or US Letter. Courier tab with aligned chord names, rows that wrap at bar lines, page numbers, and a legend for the techniques you used. The PDF is generated in the browser, so it works offline.
+- **PDF**: A4 or US Letter, in two styles. **Illuminated** has a ruled red-and-blue frame, a gilt initial, ¶ rubrics and Times type. **Plain** is the original clean layout. Courier tab with aligned chord names, rows that wrap at bar lines, page numbers, and a legend for the techniques you used. The PDF is generated in the browser, so it works offline.
 - **TXT**: classic ASCII tab at 60–120 characters per line, ready to paste into a forum or a text file.
 
 On phones that support it, **Share…** sends the file straight to Files, Drive, Messages and so on.
@@ -91,7 +108,10 @@ Any other Node host works the same way (`npm start`), and so does any static hos
 
 ```
 index.html            app shell
-css/styles.css        mobile-first styles, light and dark
+css/styles.css        mobile-first layout and base styles
+css/manuscript.css    the illuminated-manuscript theme (colours, fonts, ornaments)
+fonts/                bundled OFL fonts + licences
+ornaments/            vellum texture, vine border, corner flourish, snail drollery (SVG)
 js/app.js             UI: rendering, input panels, dialogs, export
 js/editor.js          editing operations, cursor and undo (no DOM, unit tested)
 js/model.js           song / section / column data model

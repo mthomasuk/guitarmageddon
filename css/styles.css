@@ -99,6 +99,14 @@ button:disabled {
 [hidden] {
   display: none !important;
 }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
 .muted {
   color: var(--muted);
 }
@@ -185,6 +193,8 @@ button:disabled {
   z-index: 5;
 }
 .brand {
+  margin: 0;
+  font-weight: 400;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1084,6 +1094,7 @@ textarea:focus {
   font-size: clamp(5.5px, calc((min(100vw, 560px) - 64px) / (var(--cols, 80) * 0.61)), 12px);
   line-height: 1.25;
   white-space: pre;
+  font-variant-ligatures: none; /* some coding fonts turn "|-" into a box-drawing glyph */
 }
 .export-actions {
   display: flex;

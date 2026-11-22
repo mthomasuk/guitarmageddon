@@ -230,3 +230,23 @@ test('retune keeping the same pitches moves fret numbers', () => {
   assert.equal(transposeForTuning(song2, ['F2', 'A2', 'D3', 'G3', 'B3', 'E4']), 1);
   assert.equal(song2.sections[0].columns[0].cells[0], '0');
 });
+
+test('pdf: illuminated and plain styles are both valid', () => {
+  const song = longSong();
+  song.title = 'Greensleeves';
+  song.artist = 'Traditional';
+  for (const style of ['illuminated', 'plain']) {
+    const str = Buffer.from(songToPdf(song, { style })).toString('latin1');
+    const startxref = Number(/startxref\n(\d+)/.exec(str)[1]);
+    const entries = [...str.slice(startxref).matchAll(/^(\d{10}) 00000 n $/gm)].map((m) => Number(m[1]));
+    entries.forEach((off, i) => assert.ok(str.slice(off).startsWith(`${i + 1} 0 obj`), `${style}: object ${i + 1} offset`));
+    if (style === 'illuminated') {
+      assert.match(str, /\/BaseFont \/Times-Bold/);
+      assert.match(str, /\(reensleeves\) Tj/, 'first letter is drawn separately as the initial');
+      assert.match(str, /\(Here endeth the tab\) Tj/);
+    } else {
+      assert.match(str, /\(Greensleeves\) Tj/);
+      assert.doesNotMatch(str, /Here endeth/);
+    }
+  }
+});

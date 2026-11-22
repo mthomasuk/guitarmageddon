@@ -1,0 +1,745 @@
+/* ==========================================================================
+   Manuscript theme — vellum, iron-gall ink, vermilion rubrics, lapis and gold.
+   Loaded after styles.css: it re-skins the app without changing its layout.
+   Fonts: UnifrakturMaguntia and IM Fell English (SIL OFL, see fonts/).
+   ========================================================================== */
+
+@font-face {
+  font-family: 'UnifrakturMaguntia';
+  src: url('../fonts/unifraktur-maguntia.woff2') format('woff2');
+  font-display: swap;
+}
+@font-face {
+  font-family: 'IM Fell English';
+  src: url('../fonts/im-fell-english.woff2') format('woff2');
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'IM Fell English';
+  src: url('../fonts/im-fell-english-italic.woff2') format('woff2');
+  font-style: italic;
+  font-display: swap;
+}
+/* IM Fell's old-style "1" looks like an "I", which is no good in a tab.
+   Digits come from Cinzel (lining, classical), subset to 0-9 only. */
+@font-face {
+  font-family: 'Tab Numerals';
+  src: url('../fonts/cinzel-numerals.woff2') format('woff2');
+  unicode-range: U+0030-0039;
+  font-weight: 400 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'IM Fell English SC';
+  src: url('../fonts/im-fell-english-sc.woff2') format('woff2');
+  font-display: swap;
+}
+
+:root {
+  --bg: #eadab5;
+  --surface: #f5eacd;
+  --surface-2: #e5d2a8;
+  --ink: #2a1a0e;
+  --muted: #7a5a3a;
+  --line: #c5aa7b;
+  --string: #9c8160;
+  --accent: #a8251b; /* vermilion */
+  --accent-ink: #fff6e0;
+  --accent-soft: color-mix(in srgb, #d4a63a 28%, var(--surface));
+  --play-soft: color-mix(in srgb, #3d6b45 24%, var(--surface));
+  --lapis: #1f3c86;
+  --lapis-2: #2d55b0;
+  --gold: #d4a63a;
+  --gold-dark: #94650f;
+  --verdigris: #3d6b45;
+  --danger: #8f1d16;
+  --gold-leaf: linear-gradient(135deg, #fff1b8 0%, #e2b547 28%, #a8771c 52%, #f3d27a 76%, #9a6612 100%);
+  --wood: #2e1b10;
+  --wood-2: #22140b;
+  --fret-wire: #c9a24b;
+  --fb-string: #efe2c2;
+  --shadow: 0 12px 34px rgba(60, 35, 10, 0.28);
+  --sans: 'Tab Numerals', 'IM Fell English', 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+  --display: 'UnifrakturMaguntia', 'IM Fell English', Georgia, serif;
+  --caps: 'Tab Numerals', 'IM Fell English SC', 'IM Fell English', Georgia, serif;
+  --texture: url('../ornaments/vellum.svg');
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #19110b;
+    --surface: #241810;
+    --surface-2: #2f2116;
+    --ink: #f0e0bd;
+    --muted: #b39a74;
+    --line: #4d3826;
+    --string: #765d43;
+    --accent: #e0553f;
+    --accent-ink: #1a0d07;
+    --accent-soft: color-mix(in srgb, #d4a63a 20%, var(--surface));
+    --play-soft: color-mix(in srgb, #6fa176 24%, var(--surface));
+    --lapis: #3a62c4;
+    --lapis-2: #5b7fd6;
+    --verdigris: #6fa176;
+    --danger: #ff6a55;
+    --shadow: 0 12px 34px rgba(0, 0, 0, 0.6);
+  }
+}
+:root[data-theme='dark'] {
+  --bg: #19110b;
+  --surface: #241810;
+  --surface-2: #2f2116;
+  --ink: #f0e0bd;
+  --muted: #b39a74;
+  --line: #4d3826;
+  --string: #765d43;
+  --accent: #e0553f;
+  --accent-ink: #1a0d07;
+  --lapis: #3a62c4;
+  --verdigris: #6fa176;
+}
+
+body {
+  background: var(--bg) var(--texture);
+  font-size: 17px;
+}
+
+/* ---------------------------------------------------------------- shared pieces */
+
+/* Illuminated initial: gold-leaf letter on a lapis diaper ground, gilt frame. */
+.illum {
+  --size: 46px;
+  position: relative;
+  flex: none;
+  width: var(--size);
+  height: var(--size);
+  display: inline-grid;
+  place-items: center;
+  border-radius: 3px;
+  background:
+    radial-gradient(circle, #e9c35f 0 1.6px, transparent 2px) 0 0 / 10px 10px,
+    repeating-linear-gradient(45deg, transparent 0 6px, rgba(255, 255, 255, 0.09) 6px 7px),
+    repeating-linear-gradient(-45deg, transparent 0 6px, rgba(255, 255, 255, 0.09) 6px 7px),
+    #1f3c86;
+  box-shadow:
+    0 0 0 2px #6b4508,
+    0 0 0 4px #e2b547,
+    0 0 0 5.5px #a8251b,
+    2px 4px 10px rgba(40, 20, 5, 0.35);
+}
+.illum > span {
+  font-family: var(--display);
+  font-size: calc(var(--size) * 0.8);
+  line-height: 1;
+  margin-top: calc(var(--size) * 0.06);
+  background: var(--gold-leaf);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 1.5px 0 rgba(10, 20, 50, 0.7));
+}
+.illum.big {
+  --size: 54px;
+}
+
+/* Lombardic initials: alternating vermilion and lapis, with pen-work flourish */
+.lomb {
+  font-family: var(--display);
+  font-size: 1.75em;
+  line-height: 0.8;
+  color: var(--accent);
+  margin-right: 1px;
+  position: relative;
+  top: 0.06em;
+}
+.lomb-1 {
+  color: var(--lapis);
+}
+
+/* ---------------------------------------------------------------- buttons & controls */
+.btn {
+  font-family: var(--caps);
+  font-weight: 400;
+  font-size: 17px;
+  letter-spacing: 0.02em;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.btn.primary,
+.btn.accent {
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow:
+    inset 0 0 0 1.5px #e2b547,
+    0 1px 2px rgba(40, 20, 5, 0.3);
+}
+.btn.danger {
+  background: var(--danger);
+  box-shadow: inset 0 0 0 1.5px #e2b547;
+}
+.btn.big {
+  font-size: 21px;
+  border-radius: 10px;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.12)),
+    radial-gradient(circle, rgba(233, 195, 95, 0.55) 0 1.4px, transparent 1.8px) 0 0 / 12px 12px,
+    #1f3c86;
+  color: #f6dc8c;
+  box-shadow:
+    inset 0 0 0 2px #e2b547,
+    inset 0 0 0 4px #1f3c86,
+    inset 0 0 0 5px #a8251b,
+    0 3px 10px rgba(40, 20, 5, 0.3);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.5);
+}
+.btn .plus {
+  font-family: var(--display);
+}
+.icon-btn {
+  color: var(--ink);
+}
+
+/* ---------------------------------------------------------------- top bars */
+.topbar {
+  background: var(--surface) var(--texture);
+  border-bottom: 3px double var(--line);
+}
+.brand {
+  gap: 0;
+  align-items: center;
+  padding-left: 8px;
+}
+.brand .illum {
+  --size: 40px;
+  margin-right: 8px;
+}
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+}
+.brand-name {
+  font-family: var(--display);
+  font-size: 30px;
+  color: var(--ink);
+  letter-spacing: 0;
+}
+.brand-sub {
+  font-family: var(--caps);
+  font-size: 12px;
+  color: var(--accent);
+  letter-spacing: 0.08em;
+  margin-top: 3px;
+}
+.title-btn span {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 21px;
+  line-height: 1.1;
+}
+.title-btn small {
+  font-style: italic;
+  font-size: 13px;
+}
+#btn-export {
+  font-size: 16px;
+}
+
+/* ---------------------------------------------------------------- library */
+.list-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--caps);
+  font-size: 15px;
+  letter-spacing: 0.1em;
+  text-transform: none;
+  color: var(--accent);
+}
+.list-title::before,
+.list-title::after {
+  content: '';
+  flex: 1;
+  border-top: 3px double var(--line);
+}
+.song-item {
+  background: var(--surface) var(--texture);
+  border: 0;
+  border-radius: 4px;
+  box-shadow:
+    inset 0 0 0 1px var(--line),
+    0 1px 2px rgba(40, 20, 5, 0.15);
+}
+.song-title {
+  font-weight: 400;
+  font-size: 20px;
+}
+.song-title::before {
+  content: '¶ ';
+  color: var(--accent);
+}
+.song-item:nth-child(even) .song-title::before {
+  color: var(--lapis);
+}
+.song-sub {
+  font-style: italic;
+  font-size: 14px;
+}
+.empty-library img {
+  width: min(240px, 70vw);
+  height: auto;
+  margin-bottom: 6px;
+}
+.empty-library p:first-of-type {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 30px;
+}
+.empty-library .muted {
+  font-style: italic;
+}
+
+/* ---------------------------------------------------------------- the folio (tab sheet) */
+.sheet {
+  /* marginal vine, scrolling with the page */
+  background: url('../ornaments/vine.svg') max(4px, env(safe-area-inset-left)) 0 / 22px auto repeat-y local;
+  padding-left: max(30px, calc(env(safe-area-inset-left) + 28px));
+}
+.folio-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  max-width: 1100px;
+  margin: 4px auto 14px;
+  padding: 6px 6px 10px 8px;
+  text-align: left;
+  border-bottom: 3px double var(--line);
+}
+.folio-title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 3px;
+}
+.folio-title .ft {
+  font-family: var(--display);
+  font-size: 28px;
+  line-height: 1.05;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.folio-title .fa {
+  font-style: italic;
+  font-size: 16px;
+  color: var(--accent);
+}
+.folio-title .fm {
+  font-family: var(--caps);
+  font-size: 13px;
+  color: var(--muted);
+  letter-spacing: 0.03em;
+}
+
+/* Sections are solid (no texture) so the patch behind each fret number,
+   which hides the string line, matches the page exactly. */
+.tab-section {
+  position: relative;
+  padding: 8px 8px 12px;
+  border-radius: 4px;
+  background: var(--bg);
+}
+.tab-section.active {
+  background: var(--surface);
+  box-shadow:
+    0 0 0 1px var(--accent),
+    0 0 0 4px var(--surface),
+    0 0 0 5px var(--lapis),
+    0 3px 12px rgba(40, 20, 5, 0.18);
+}
+.section-name {
+  font-family: var(--caps);
+  font-weight: 400;
+  font-size: 19px;
+  color: var(--accent);
+  letter-spacing: 0.02em;
+  padding: 4px 6px;
+}
+.section-name::before {
+  content: none;
+}
+.section-name::after {
+  content: ' ❧';
+  margin-left: 4px;
+  color: var(--gold-dark);
+  font-family: Georgia, serif;
+}
+.staff {
+  font-family: var(--sans);
+  font-size: 17px;
+}
+.cell span {
+  font-weight: 400;
+}
+.lbl {
+  font-family: var(--sans);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 16px;
+  color: var(--accent);
+}
+.col.names {
+  font-family: var(--caps);
+  font-size: 14px;
+  font-weight: 400;
+}
+.col.names .lbl span {
+  font-family: var(--caps);
+  font-style: normal;
+  font-size: 11px;
+  color: var(--accent);
+  letter-spacing: 0.06em;
+  text-transform: none;
+}
+.col.cur {
+  background: var(--accent-soft);
+}
+.cell.sel {
+  box-shadow: inset 0 0 0 2px var(--accent);
+  border-radius: 3px;
+}
+.tab-section .col.insel {
+  --cellbg: color-mix(in srgb, var(--lapis) 20%, var(--surface));
+}
+.col.bar.insel .cell::after,
+.col.bar.cur .cell::after {
+  background: var(--lapis);
+}
+.section-notes {
+  font-size: 17px;
+  color: var(--ink);
+  opacity: 0.85;
+}
+.section-notes.empty {
+  font-style: italic;
+  color: var(--muted);
+}
+.add-section {
+  border: 1.5px dashed var(--gold-dark);
+  color: var(--gold-dark);
+  background: transparent;
+  box-shadow: none;
+}
+.colophon {
+  text-align: center;
+  margin: 26px auto 0;
+  color: var(--accent);
+}
+.colophon img {
+  width: 150px;
+  height: auto;
+  opacity: 0.92;
+}
+.colophon p {
+  margin: 2px 0 0;
+  font-family: var(--caps);
+  font-size: 14px;
+  letter-spacing: 0.12em;
+}
+.colophon p::before,
+.colophon p::after {
+  content: ' ❦ ';
+  color: var(--gold-dark);
+  font-family: Georgia, serif;
+}
+
+/* ---------------------------------------------------------------- dock */
+.dock {
+  background: var(--surface-2) var(--texture);
+  border-top: 3px double var(--accent);
+  box-shadow: 0 -6px 18px rgba(40, 20, 5, 0.18);
+}
+.seg {
+  background: color-mix(in srgb, var(--ink) 9%, transparent);
+}
+.seg button {
+  font-family: var(--caps);
+  font-size: 15px;
+  font-weight: 400;
+}
+.seg button.on {
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--accent);
+}
+.mode-toggle {
+  font-family: var(--caps);
+  font-size: 15px;
+  font-weight: 400;
+  border-color: var(--line);
+  background: var(--surface);
+}
+.mode-toggle[data-mode='chord'] {
+  box-shadow: inset 0 0 0 1.5px #e2b547;
+}
+.hint {
+  font-style: italic;
+  font-size: 13.5px;
+}
+.hint b {
+  font-style: normal;
+  font-weight: 400;
+  color: var(--accent);
+}
+.tech,
+.act,
+.kp-fret,
+.kp-str,
+.chord-btn {
+  background: var(--surface);
+  border: 0;
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.tech b,
+.act b {
+  font-family: var(--sans);
+  font-weight: 400;
+}
+.tech small,
+.act small,
+.chord-btn small {
+  font-family: var(--sans);
+  font-style: italic;
+  font-size: 11px;
+}
+.tech.on,
+.kp-str.on,
+.sel-bar .act.done {
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: inset 0 0 0 1.5px #e2b547;
+}
+.kp-fret {
+  font-weight: 400;
+  font-size: 20px;
+  font-family: var(--sans);
+}
+.kp-fret.on {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.kp-str {
+  font-family: var(--caps);
+  font-weight: 400;
+  font-size: 15px;
+}
+.chord-btn b {
+  font-family: var(--sans);
+  font-weight: 400;
+  font-size: 18px;
+}
+.chord-group h4 {
+  font-family: var(--caps);
+  font-weight: 400;
+  font-size: 13px;
+  color: var(--accent);
+  text-transform: none;
+}
+.sel-bar .act {
+  font-family: var(--caps);
+  font-weight: 400;
+  font-size: 16px;
+}
+.tech-sep {
+  background: var(--accent);
+  opacity: 0.5;
+}
+
+/* ---------- fretboard: carved walnut, brass frets, bone nut, gilt inlays */
+.fretboard {
+  background: var(--wood);
+}
+.fb-inner {
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.025) 0 2px, transparent 2px 9px),
+    linear-gradient(180deg, #3b2314 0%, #2a170c 100%);
+}
+.fb-cell {
+  border-right-color: var(--fret-wire);
+}
+.fb-cell.open,
+.fb-nums span.open {
+  background: #1a0e07;
+  border-right-color: #efe3c6;
+}
+.open-name {
+  font-family: var(--caps);
+  font-size: 15px;
+  font-weight: 400;
+  color: #e7cf98;
+}
+.fb-row.cur .fb-cell.open {
+  background: #4a1d12;
+}
+.fb-cell.on::after {
+  background: var(--accent);
+  box-shadow:
+    0 0 0 2px #e2b547,
+    0 2px 6px rgba(0, 0, 0, 0.6);
+  font-family: var(--sans);
+  font-weight: 400;
+  font-size: 13px;
+  color: #fff6e0;
+}
+.fb-nums {
+  background: #1f1209;
+}
+.fb-nums span {
+  font-family: var(--sans);
+  font-weight: 400;
+  font-size: 12px;
+  color: #c9a96e;
+}
+.fb-nums .dot::before,
+.fb-nums .dbl::before,
+.fb-nums .dbl::after {
+  width: 6px;
+  height: 6px;
+  border-radius: 1px;
+  transform: rotate(45deg);
+  background: #e2b547;
+}
+
+/* ---------------------------------------------------------------- dialogs */
+dialog.modal {
+  background: var(--surface) var(--texture);
+  border-radius: 14px 14px 0 0;
+  box-shadow:
+    inset 0 0 0 7px var(--surface),
+    inset 0 0 0 8px var(--accent),
+    inset 0 0 0 11px var(--surface),
+    inset 0 0 0 12px var(--lapis),
+    var(--shadow);
+}
+@media (min-width: 700px) {
+  dialog.modal {
+    border-radius: 14px;
+  }
+}
+dialog.modal::before,
+dialog.modal::after {
+  content: '';
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  background: url('../ornaments/corner.svg') 0 0 / contain no-repeat;
+  pointer-events: none;
+  opacity: 0.9;
+}
+dialog.modal::before {
+  top: 13px;
+  left: 13px;
+}
+dialog.modal::after {
+  top: 13px;
+  right: 13px;
+  transform: scaleX(-1);
+}
+.modal-head {
+  padding: 22px 50px 4px 50px;
+}
+.modal-head .icon-btn {
+  margin-right: -6px;
+  position: relative;
+  z-index: 1;
+}
+.modal-head h3 {
+  font-family: var(--display);
+  font-weight: 400;
+  font-size: 30px;
+  line-height: 1.1;
+}
+.modal-head h3::first-letter {
+  color: var(--accent);
+}
+.modal-body {
+  padding-left: 24px;
+  padding-right: 24px;
+}
+.modal-foot {
+  padding-left: 24px;
+  padding-right: 24px;
+}
+.field > span {
+  font-family: var(--caps);
+  font-weight: 400;
+  font-size: 15px;
+  color: var(--accent);
+}
+input[type='text'],
+input[type='number'],
+select,
+textarea {
+  font-family: var(--sans);
+  font-size: 17px;
+  background: color-mix(in srgb, var(--bg) 70%, var(--surface));
+  border-color: var(--line);
+}
+.action-item {
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font-weight: 400;
+  font-size: 17px;
+}
+.chip {
+  font-weight: 400;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.chip.on {
+  box-shadow: inset 0 0 0 1.5px #e2b547;
+}
+.help-list b {
+  font-weight: 400;
+  font-family: var(--caps);
+}
+.check b {
+  font-weight: 400;
+}
+.tuning-summary b,
+.tuning-btn b,
+.tuning-row .note b {
+  font-family: var(--sans);
+  font-weight: 400;
+  font-size: 20px;
+}
+.tuning-row .step {
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.format-seg button b {
+  font-family: var(--caps);
+  font-weight: 400;
+  font-size: 18px;
+}
+.preview-wrap {
+  background: #fbf3dc;
+  border-color: var(--line);
+}
+
+/* ---------------------------------------------------------------- toast: a little gilt banner */
+.toast {
+  background: var(--lapis);
+  color: #f6dc8c;
+  font-family: var(--caps);
+  font-weight: 400;
+  font-size: 15px;
+  border-radius: 6px;
+  box-shadow:
+    inset 0 0 0 1.5px #e2b547,
+    0 6px 16px rgba(20, 10, 5, 0.35);
+}
+
+.style-seg button {
+  min-height: 40px;
+}

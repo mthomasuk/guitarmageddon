@@ -12,7 +12,7 @@ const ROOT = fileURLToPath(new URL('.', import.meta.url));
 const PORT = Number(process.env.PORT) || 8080;
 
 // Only these files/folders are public; everything else (tests, .git, README…) is not.
-const PUBLIC = ['index.html', 'manifest.webmanifest', 'sw.js', 'css', 'js', 'icons'];
+const PUBLIC = ['index.html', 'manifest.webmanifest', 'sw.js', 'css', 'js', 'icons', 'fonts', 'ornaments'];
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -22,6 +22,7 @@ const TYPES = {
   '.svg': 'image/svg+xml',
   '.png': 'image/png',
   '.ico': 'image/x-icon',
+  '.woff2': 'font/woff2',
 };
 const COMPRESSIBLE = new Set(['.html', '.css', '.js', '.webmanifest', '.svg']);
 
