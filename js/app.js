@@ -709,7 +709,16 @@ function renderSheet() {
       .reverse()
       .map(({ l }) => `<div class="cell"><span>${esc(l.trim())}</span></div>`)
       .join('')}${rh()}</div>`;
+    // Unwritten space at the end of a section fills the rest of the current line and is clipped
+    // there, rather than wrapping onto an empty extra line. Everything up to the music, the cursor
+    // and the selection, plus one blank column, stays in the normal flow and wraps as it grows.
+    let inUse = lastContent;
+    if (active) inUse = Math.max(inUse, cursor.col);
+    const sr = editor.selRange;
+    if (sr && sr.sec === si) inUse = Math.max(inUse, sr.to);
+    const tailStart = inUse + 2;
     sec.columns.forEach((col, ci) => {
+      if (ci === tailStart) html += '<div class="staff-tail">';
       const cur = active && ci === cursor.col;
       const play = playing && playing.sec === si && playing.col === ci;
       const insel = editor.isSelected(si, ci) ? ' insel' : '';
@@ -736,6 +745,7 @@ function renderSheet() {
       }
       html += '</div>';
     });
+    if (tailStart < sec.columns.length) html += '</div>';
     html += '</div>';
     if (sec.notes) {
       const folded = foldedNotes.has(sec.id);

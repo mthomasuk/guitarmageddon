@@ -360,6 +360,16 @@ button:disabled {
   font-size: 15px;
   padding: 0 2px;
 }
+/* Trailing unwritten space: takes what's left of the line and clips the rest (never wraps). */
+.staff-tail {
+  display: flex;
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+}
+.staff-tail > .col {
+  flex: none;
+}
 .col {
   --cellbg: var(--bg);
   display: flex;
