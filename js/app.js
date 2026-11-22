@@ -1,6 +1,6 @@
-import { createSong, cellFret, clone, uid, applyTuning, MAX_FRET } from './model.js';
+import { createSong, cellFret, clone, uid, applyTuning, transposeForTuning, MAX_FRET } from './model.js';
 import { Editor, JOIN_TECHNIQUES } from './editor.js';
-import { TUNINGS, stringLabels, tuningName, tuningText, parseTuning, noteName } from './tunings.js';
+import { TUNINGS, stringLabels, tuningName, tuningText, parseTuning, noteName, noteToMidi, shiftNote, sameTuning } from './tunings.js';
 import { CHORD_GROUPS, fitShape } from './chords.js';
 import { songToText } from './tabtext.js';
 import { songToPdf } from './pdf.js';
@@ -146,7 +146,8 @@ function showHelp() {
         li('Techniques:', 'tap a note, then h, p, /, \\, b or r, then the next fret: you get 5h7, 7b9, 5/7…'),
         li('Tap any spot in the tab', 'to select it. ⌫ clears it, | adds a bar line, → adds space.'),
         li('Chords', 'tab drops in a full shape with its name above it.'),
-        li('Export', 'gives you a printable PDF or a plain-text .txt. Everything is saved on this device.')
+        li('Tuning:', 'tap the string names at the start of the tab to retune string by string, or pick Drop D, DADGAD and more.'),
+        li('Export', 'gives you a printable PDF or a plain-text .txt. Everything saves on this device as you go, and reopens where you left off.')
       ),
       h('p', { class: 'muted small' }, 'Keyboard: digits enter frets (type 1 then 2 for 12), arrows move, Space = next, | = bar, h/p/b/r/~ techniques, ⌘/Ctrl+Z undo.'),
     ],
@@ -162,19 +163,34 @@ let renderQueued = false;
 let lastCursorKey = '';
 let builtFor = '';
 
+let songDirty = false;
+
 function scheduleSave() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(flushSave, 300);
 }
+/** Write the tab (if it changed) and the editing session to localStorage. */
 function flushSave() {
   clearTimeout(saveTimer);
-  if (editor && !store.saveSong(editor.song)) toast('Could not save — storage is full');
+  if (!editor) return;
+  if (songDirty) {
+    if (store.saveSong(editor.song)) songDirty = false;
+    else toast('Could not save — storage is full');
+  }
+  store.saveSession(editor.song.id, {
+    cursor: editor.cursor,
+    undo: editor.undoStack,
+    redo: editor.redoStack,
+    sheetScroll: $('#sheet').scrollTop,
+    fretScroll: $('#panel-fretboard .fretboard')?.scrollLeft || 0,
+  });
 }
 document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && flushSave());
 window.addEventListener('pagehide', flushSave);
 
 function onEditorChange({ content }) {
-  if (content) scheduleSave();
+  if (content) songDirty = true;
+  scheduleSave();
   scheduleRender();
 }
 
@@ -199,20 +215,37 @@ function route() {
 window.addEventListener('hashchange', route);
 
 function openEditor(song) {
+  let session = null;
   if (!editor || editor.song.id !== song.id) {
     stopPlayback();
+    flushSave();
     editor = new Editor(song, { onChange: onEditorChange });
     editor.mode = prefs.mode;
+    songDirty = false;
+    session = store.loadSession(song.id);
+    if (session) {
+      if (session.cursor) editor.cursor = { ...editor.cursor, ...session.cursor };
+      editor.undoStack = Array.isArray(session.undo) ? session.undo : [];
+      editor.redoStack = Array.isArray(session.redo) ? session.redo : [];
+      editor.clampCursor();
+    }
     builtFor = '';
-    lastCursorKey = '';
+    lastCursorKey = `${editor.cursor.sec}:${editor.cursor.col}:${editor.cursor.str}`;
   }
   prefs.lastSong = song.id;
+  prefs.lastView = 'editor';
   savePrefs();
   $('#library-view').hidden = true;
   $('#editor-view').hidden = false;
   document.body.classList.add('editing');
   renderEditor();
-  $('#sheet').scrollTop = 0;
+  if (session) {
+    $('#sheet').scrollTop = session.sheetScroll || 0;
+    const fbEl = $('#panel-fretboard .fretboard');
+    if (fbEl) fbEl.scrollLeft = session.fretScroll || 0;
+  } else if (session === null && lastCursorKey === '0:0:' + (song.tuning.length - 1)) {
+    $('#sheet').scrollTop = 0;
+  }
   if (!prefs.seenHelp) {
     prefs.seenHelp = true;
     savePrefs();
@@ -223,6 +256,10 @@ function openEditor(song) {
 function closeEditor() {
   stopPlayback();
   flushSave();
+  if (editor) {
+    prefs.lastView = 'library';
+    savePrefs();
+  }
   editor = null;
   $('#editor-view').hidden = true;
   $('#library-view').hidden = false;
@@ -311,6 +348,15 @@ async function songInfoDialog(song, isNew = false) {
     const t = TUNINGS.find((t) => t.name === tuningSel.value);
     if (t) custom.value = tuningText(t.notes);
   });
+  const tuningBtn = h('button', { type: 'button', class: 'tuning-btn' });
+  const showTuning = () => {
+    tuningBtn.innerHTML = `<b>${esc(tuningText(song.tuning))}</b><span>${esc(tuningName(song.tuning))} · Change…</span>`;
+  };
+  showTuning();
+  tuningBtn.addEventListener('click', async () => {
+    await tuningDialog();
+    showTuning();
+  });
   const capo = h('input', { type: 'number', min: 0, max: 12, value: song.capo, inputmode: 'numeric' });
   const tempo = h('input', { type: 'number', min: 30, max: 300, value: song.tempo, inputmode: 'numeric' });
 
@@ -320,8 +366,8 @@ async function songInfoDialog(song, isNew = false) {
     content: [
       field('Title', title),
       field('Artist', artist),
-      field('Tuning', tuningSel),
-      customWrap,
+      isNew ? field('Tuning', tuningSel) : h('div', { class: 'field' }, h('span', {}, 'Tuning'), tuningBtn),
+      isNew ? customWrap : null,
       h('div', { class: 'field-row' }, field('Capo', capo), field('Tempo (BPM)', tempo)),
     ],
     buttons: [
@@ -331,8 +377,8 @@ async function songInfoDialog(song, isNew = false) {
   });
   if (value !== 'ok') return false;
 
-  let notes = TUNINGS.find((t) => t.name === tuningSel.value)?.notes;
-  if (tuningSel.value === 'Custom') {
+  let notes = isNew ? TUNINGS.find((t) => t.name === tuningSel.value)?.notes : song.tuning;
+  if (isNew && tuningSel.value === 'Custom') {
     notes = parseTuning(custom.value);
     if (!notes) {
       toast('Tuning not recognised — use 4 to 8 notes like “D A D G B E”');
@@ -350,6 +396,110 @@ async function songInfoDialog(song, isNew = false) {
     apply(song);
     song.sections[0].columns.forEach((c) => c.type === 'note' && (c.cells = Array(notes.length).fill('')));
   } else editor.updateSong(apply);
+  return true;
+}
+
+// ---------------------------------------------------------------- tuning
+/** Retune string by string (or pick a preset). Applies to the open tab. */
+async function tuningDialog() {
+  const song = editor.song;
+  let draft = song.tuning.slice();
+  const summary = h('div', { class: 'tuning-summary' });
+  const rows = h('div', { class: 'tuning-rows' });
+  const keep = h('input', { type: 'checkbox' });
+  const keepLabel = h(
+    'label',
+    { class: 'check' },
+    keep,
+    h('span', {}, h('b', {}, 'Keep notes sounding the same'), h('small', {}, 'Moves the fret numbers in your tab to match the new tuning'))
+  );
+  const chips = h(
+    'div',
+    { class: 'chips' },
+    TUNINGS.map((t) =>
+      h('button', { type: 'button', class: 'chip', 'data-name': t.name, onclick: () => { draft = t.notes.slice(); draw(); } }, t.name)
+    )
+  );
+  const pluck = (note) => sound(() => playMidi(noteToMidi(note) + Number(song.capo || 0)));
+  const inRange = (note) => {
+    const m = noteToMidi(note);
+    return m >= 21 && m <= 76;
+  };
+  const shift = (i, d) => {
+    const next = shiftNote(draft[i], d);
+    if (!inRange(next)) return;
+    draft[i] = next;
+    pluck(next);
+    draw();
+  };
+  const shiftAll = (d) => {
+    const next = draft.map((n) => shiftNote(n, d));
+    if (!next.every(inRange)) return;
+    draft = next;
+    draw();
+  };
+
+  function draw() {
+    const labels = stringLabels(draft);
+    const name = tuningName(draft);
+    summary.innerHTML = `<b>${esc(tuningText(draft))}</b><span>${esc(name)}${sameTuning(draft, song.tuning) ? ' · current' : ''}</span>`;
+    $$('.chip', chips).forEach((c) => c.classList.toggle('on', c.dataset.name === name));
+    rows.innerHTML = '';
+    for (let i = draft.length - 1; i >= 0; i--) {
+      const n = draft.length - i;
+      const diff = song.tuning.length === draft.length ? noteToMidi(draft[i]) - noteToMidi(song.tuning[i]) : 0;
+      rows.append(
+        h(
+          'div',
+          { class: 'tuning-row' },
+          h('span', { class: 'string-no' }, String(n)),
+          h('button', { type: 'button', class: 'step', 'aria-label': `Tune string ${n} down`, onclick: () => shift(i, -1) }, '−'),
+          h(
+            'button',
+            { type: 'button', class: `note${diff ? ' changed' : ''}`, 'aria-label': `Play string ${n}`, onclick: () => pluck(draft[i]) },
+            h('b', {}, labels[i].trim()),
+            h('small', {}, diff ? `${diff > 0 ? '+' : ''}${diff} semitone${Math.abs(diff) === 1 ? '' : 's'}` : draft[i])
+          ),
+          h('button', { type: 'button', class: 'step', 'aria-label': `Tune string ${n} up`, onclick: () => shift(i, 1) }, '+')
+        )
+      );
+    }
+    rows.append(
+      h(
+        'div',
+        { class: 'tuning-row all' },
+        h('span', { class: 'string-no' }, ''),
+        h('button', { type: 'button', class: 'step', 'aria-label': 'All strings down a half step', onclick: () => shiftAll(-1) }, '−'),
+        h('span', { class: 'note' }, h('b', {}, 'All strings'), h('small', {}, 'half step')),
+        h('button', { type: 'button', class: 'step', 'aria-label': 'All strings up a half step', onclick: () => shiftAll(1) }, '+')
+      )
+    );
+    const canKeep = draft.length === song.tuning.length;
+    keepLabel.hidden = !canKeep;
+    if (!canKeep) keep.checked = false;
+  }
+  draw();
+
+  const { value } = await modal({
+    title: 'Tuning',
+    className: 'tuning',
+    content: [chips, summary, rows, keepLabel],
+    buttons: [
+      { label: 'Cancel', value: 'cancel' },
+      { label: 'Apply', value: 'ok', kind: 'primary' },
+    ],
+  });
+  if (value !== 'ok' || sameTuning(draft, song.tuning)) return false;
+  let skipped = 0;
+  const before = song.tuning.length;
+  editor.updateSong((s) => {
+    if (keep.checked) skipped = transposeForTuning(s, draft);
+    applyTuning(s, draft);
+  });
+  const name = tuningName(draft);
+  if (skipped) toast(`${skipped} note${skipped === 1 ? '' : 's'} would go below fret 0, so ${skipped === 1 ? 'it was' : 'they were'} left as is`);
+  else if (draft.length !== before) toast(`Now ${draft.length} strings — ${draft.length > before ? 'low strings added' : 'lowest strings removed'}`);
+  else toast(`Tuned to ${name === 'Custom' ? tuningText(draft) : name}`);
   return true;
 }
 
@@ -486,7 +636,7 @@ function renderSheet() {
     html += `<section class="tab-section${active ? ' active' : ''}" data-sec="${si}">`;
     html += `<div class="section-head"><button class="section-name" data-act="rename" data-sec="${si}">${esc(sec.name)}</button><button class="icon-btn small" data-act="secmenu" data-sec="${si}" aria-label="Section options">⋯</button></div>`;
     html += `<div class="staff" style="--n:${n}">`;
-    html += `<div class="col names" aria-hidden="true"><div class="lbl"></div>${labels
+    html += `<div class="col names" data-act="tuning" role="button" aria-label="Change tuning" title="Change tuning"><div class="lbl"><span>tune</span></div>${labels
       .map((l, i) => ({ l, i }))
       .reverse()
       .map(({ l }) => `<div class="cell"><span>${esc(l.trim())}</span></div>`)
@@ -714,12 +864,13 @@ function togglePlay() {
 
 async function columnMenu() {
   const col = editor.column;
-  const a = await actionSheet('Column', [
+  const a = await actionSheet('More', [
     { label: col.type === 'note' && col.label ? `Edit label “${col.label}”` : 'Add chord name / label', value: 'label', disabled: col.type === 'bar' },
     { label: 'Insert empty column before', value: 'insert' },
     { label: 'Duplicate column', value: 'dup' },
     { label: 'Clear column', value: 'clear', disabled: col.type === 'bar' },
     { label: 'Delete column', value: 'delete', danger: true },
+    { label: `Tuning: ${tuningText(editor.song.tuning)}…`, value: 'tuning' },
     { label: prefs.sound ? 'Turn note sounds off' : 'Turn note sounds on', value: 'sound' },
   ]);
   if (a === 'label') editLabel();
@@ -727,6 +878,7 @@ async function columnMenu() {
   else if (a === 'dup') editor.duplicateColumn();
   else if (a === 'clear') editor.clearColumn();
   else if (a === 'delete') editor.deleteColumn();
+  else if (a === 'tuning') tuningDialog();
   else if (a === 'sound') {
     prefs.sound = !prefs.sound;
     savePrefs();
@@ -857,6 +1009,8 @@ $('#sheet').addEventListener('click', (e) => {
         return editNotes(i);
       case 'addsec':
         return addSection();
+      case 'tuning':
+        return tuningDialog();
       case 'label': {
         const colEl = act.closest('.col');
         const sec = Number(colEl.dataset.sec);
@@ -916,4 +1070,11 @@ document.addEventListener('keydown', (e) => {
 if ('serviceWorker' in navigator && location.protocol !== 'file:' && !/^(localhost|127\.)/.test(location.hostname)) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
+// Reopen whatever was open last time, exactly where you left off.
+store.requestPersistence();
+if (!location.hash && prefs.lastView === 'editor' && prefs.lastSong && store.getSong(prefs.lastSong)) {
+  history.replaceState(null, '', `#/tab/${prefs.lastSong}`);
+}
 route();
+$('#sheet').addEventListener('scroll', () => editor && scheduleSave(), { passive: true });
+$('#panel-fretboard').addEventListener('scroll', () => editor && scheduleSave(), { passive: true, capture: true });

@@ -18,7 +18,17 @@ No build step, no dependencies, works offline, and installs to your home screen.
 | Organise the song | **+ Add section** (Intro, Verse, Chorus…); each section has a **⋯** menu and can hold notes or lyrics |
 | Hear it | **▶** plays from the cursor at the song's tempo |
 
-Song details (title, artist, tuning, capo, tempo) are behind the title at the top. Tunings include Standard, Drop D/C, half step down, DADGAD, open G/D/E, 7-string, 4- and 5-string bass, and custom tunings.
+Song details (title, artist, tuning, capo, tempo) are behind the title at the top.
+
+## Changing the tuning
+
+Tap the string names at the start of the tab (marked **TUNE**), or open **⋯ → Tuning**, or go to song details.
+
+- Pick a preset: Standard, Drop D, half step down, D standard, Drop C, DADGAD, open G/D/E, 7-string, or 4- or 5-string bass.
+- Or tune string by string with **−** / **+** (one semitone per tap). You hear each string as you change it, and any string you've changed shows how far it moved. **All strings** shifts the whole guitar.
+- Tick **Keep notes sounding the same** to rewrite the fret numbers for the new tuning (e.g. in Drop D an open low E becomes fret 2). Leave it unticked to keep the fingering and change the sound.
+- Going to more or fewer strings (7-string, bass) adds or removes the lowest strings.
+- A retune can be undone like any other edit.
 
 With a keyboard: digits enter frets (type `1` `2` quickly for 12), arrows move, `Space` steps on, `|` adds a bar line, `h p b r ~ x` apply techniques, `c` toggles chord mode, `Enter` plays, `Ctrl/⌘+Z` undoes.
 
@@ -29,7 +39,15 @@ With a keyboard: digits enter frets (type `1` `2` quickly for 12), arrows move, 
 
 On phones that support it, **Share…** sends the file straight to Files, Drive, Messages and so on.
 
-Tabs are saved automatically to your browser's local storage on that device.
+## Saving
+
+There's no account and no server: everything is kept in the browser's `localStorage` on your device, saved automatically as you go.
+
+- **Tabs**: every edit, saved within a moment and again when you switch away from the app.
+- **Where you were**: the tab you had open, the cursor position, scroll positions, and the full undo/redo history (the most recent 60 steps). Close the app, come back, and you're exactly where you left off, and undo still works.
+- **Preferences**: input panel, Notes/Chord mode, sound on/off, panel collapsed, and export settings.
+
+The app asks the browser to treat its storage as persistent, so it isn't cleared to free up space. Clearing site data or using a private window will still remove it, and tabs don't sync between devices.
 
 ## Running locally
 
@@ -59,7 +77,7 @@ js/pdf.js             dependency-free PDF writer
 js/audio.js           plucked-string synth for previews and playback
 js/tunings.js         tunings and note maths
 js/chords.js          chord shapes
-js/storage.js         localStorage persistence
+js/storage.js         localStorage persistence (tabs, sessions, preferences)
 sw.js                 offline cache
 tests/                node:test unit tests
 ```

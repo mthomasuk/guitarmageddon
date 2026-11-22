@@ -43,6 +43,40 @@ export function deleteSong(id) {
   const all = read(SONGS_KEY, {});
   delete all[id];
   write(SONGS_KEY, all);
+  try {
+    localStorage.removeItem(SESSION_PREFIX + id);
+  } catch {
+    /* ignore */
+  }
+}
+
+// Per-tab editing session: cursor, undo/redo history, scroll positions.
+const SESSION_PREFIX = 'guitarmageddon.session.v1.';
+const HISTORY_KEEP = 60;
+const SESSION_BUDGET = 1_500_000; // characters; history is trimmed to stay under this
+
+export function loadSession(id) {
+  return read(SESSION_PREFIX + id, null);
+}
+
+export function saveSession(id, session) {
+  const s = { ...session, undo: (session.undo || []).slice(-HISTORY_KEEP), redo: (session.redo || []).slice(-HISTORY_KEEP) };
+  // Keep the newest history that fits the budget, then fall back to dropping it.
+  while (JSON.stringify(s).length > SESSION_BUDGET && (s.undo.length || s.redo.length)) {
+    if (s.undo.length >= s.redo.length) s.undo.shift();
+    else s.redo.shift();
+  }
+  if (write(SESSION_PREFIX + id, s)) return true;
+  return write(SESSION_PREFIX + id, { ...s, undo: [], redo: [] });
+}
+
+/** Ask the browser not to evict our data when the device is low on space. */
+export function requestPersistence() {
+  try {
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+  } catch {
+    /* unsupported */
+  }
 }
 
 export function loadPrefs() {

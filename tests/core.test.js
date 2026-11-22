@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createSong, applyTuning, normalizeSong } from '../js/model.js';
+import { createSong, applyTuning, normalizeSong, transposeForTuning } from '../js/model.js';
 import { Editor } from '../js/editor.js';
 import { songToText, layoutSection } from '../js/tabtext.js';
 import { songToPdf, pdfString } from '../js/pdf.js';
-import { parseTuning, stringLabels, noteToMidi } from '../js/tunings.js';
+import { parseTuning, stringLabels, noteToMidi, shiftNote, tuningName, TUNINGS } from '../js/tunings.js';
 import { CHORD_GROUPS } from '../js/chords.js';
 
 const LOW_E = 0;
@@ -198,4 +198,35 @@ test('normalizeSong repairs partial data', () => {
   const s = normalizeSong({ title: 'x', tuning: ['E2', 'A2', 'D3', 'G3', 'B3', 'E4'], sections: [{ name: 'A', columns: [{ type: 'note', cells: ['1'] }, { type: 'bar' }] }] });
   assert.equal(s.sections[0].columns[0].cells.length, 6);
   assert.equal(s.sections[0].columns[1].type, 'bar');
+});
+
+test('shifting notes and recognising tunings by pitch', () => {
+  assert.equal(shiftNote('E2', -2), 'D2');
+  assert.equal(shiftNote('B3', 1), 'C4');
+  const halfDown = ['E2', 'A2', 'D3', 'G3', 'B3', 'E4'].map((n) => shiftNote(n, -1));
+  assert.equal(tuningName(halfDown), 'Half step down'); // D#/Eb spelled differently, same pitches
+  assert.equal(tuningName(['E2', 'A2', 'D3', 'G3', 'B3', 'F4']), 'Custom');
+});
+
+test('retune keeping the same pitches moves fret numbers', () => {
+  const song = createSong();
+  const cells = song.sections[0].columns[0].cells;
+  cells[0] = '3'; // G on low E
+  cells[1] = '5h7';
+  song.sections[0].columns[1].cells[0] = '0'; // open E becomes fret 2 in Drop D
+  song.sections[0].columns[2].cells[5] = '0'; // high e, unchanged string
+  const dropD = TUNINGS.find((t) => t.name === 'Drop D').notes;
+  const skipped = transposeForTuning(song, dropD);
+  applyTuning(song, dropD);
+  assert.equal(skipped, 0);
+  assert.equal(song.sections[0].columns[0].cells[0], '5');
+  assert.equal(song.sections[0].columns[0].cells[1], '5h7');
+  assert.equal(song.sections[0].columns[1].cells[0], '2');
+  assert.equal(song.sections[0].columns[2].cells[5], '0');
+
+  // Tuning UP a string can push open notes below fret 0: those are left alone.
+  const song2 = createSong();
+  song2.sections[0].columns[0].cells[0] = '0';
+  assert.equal(transposeForTuning(song2, ['F2', 'A2', 'D3', 'G3', 'B3', 'E4']), 1);
+  assert.equal(song2.sections[0].columns[0].cells[0], '0');
 });

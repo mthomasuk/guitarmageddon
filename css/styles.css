@@ -1144,3 +1144,149 @@ textarea:focus {
     height: 170px;
   }
 }
+
+/* ---------------------------------------------------------------- tuning */
+.col.names {
+  cursor: pointer;
+}
+.col.names .lbl span {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  left: -2px;
+}
+.col.names:hover,
+.col.names:active {
+  background: var(--accent-soft);
+}
+.col.names:hover .lbl span,
+.col.names:active .lbl span {
+  color: var(--accent);
+}
+.tuning-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  min-height: 52px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1.5px solid var(--line);
+  background: var(--bg);
+  text-align: left;
+}
+.tuning-btn b {
+  font-family: var(--mono);
+  font-size: 16px;
+}
+.tuning-btn span {
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 600;
+}
+.chip.on {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.tuning-summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 2px 10px;
+}
+.tuning-summary b {
+  font-family: var(--mono);
+  font-size: 18px;
+}
+.tuning-summary span {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.tuning-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tuning-row {
+  display: grid;
+  grid-template-columns: 22px 52px 1fr 52px;
+  gap: 8px;
+  align-items: center;
+}
+.tuning-row.all {
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.string-no {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+  font-weight: 700;
+}
+.tuning-row .step {
+  height: 44px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  font-size: 24px;
+  font-weight: 600;
+}
+.tuning-row .step:active {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+.tuning-row .note {
+  height: 44px;
+  border-radius: 12px;
+  border: 1.5px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.tuning-row.all .note {
+  border-style: dashed;
+}
+.tuning-row .note b {
+  font-family: var(--mono);
+  font-size: 18px;
+}
+.tuning-row .note small {
+  font-size: 12px;
+  color: var(--muted);
+}
+.tuning-row .note.changed {
+  border-color: var(--accent);
+}
+.tuning-row .note.changed small {
+  color: var(--accent);
+  font-weight: 700;
+}
+.check {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin: 16px 2px 4px;
+  cursor: pointer;
+}
+.check input {
+  width: 22px;
+  height: 22px;
+  margin: 1px 0 0;
+  accent-color: var(--accent);
+  flex: none;
+}
+.check span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.check small {
+  color: var(--muted);
+  font-size: 13px;
+}

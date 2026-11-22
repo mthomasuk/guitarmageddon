@@ -34,8 +34,24 @@ export function noteName(note) {
   return m[1].toUpperCase() + m[2];
 }
 
+const NAMES = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+
+export function midiToNote(midi) {
+  return NAMES[((midi % 12) + 12) % 12] + (Math.floor(midi / 12) - 1);
+}
+
+/** Shift a note like "E2" by some semitones. */
+export function shiftNote(note, semis) {
+  return midiToNote(noteToMidi(note) + semis);
+}
+
+/** Same pitches, regardless of spelling (D#3 == Eb3). */
+export function sameTuning(a, b) {
+  return a.length === b.length && a.every((n, i) => noteToMidi(n) === noteToMidi(b[i]));
+}
+
 export function tuningName(notes) {
-  const t = TUNINGS.find((t) => t.notes.join() === notes.join());
+  const t = TUNINGS.find((t) => sameTuning(t.notes, notes));
   return t ? t.name : 'Custom';
 }
 

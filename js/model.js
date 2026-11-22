@@ -1,4 +1,4 @@
-import { STANDARD } from './tunings.js';
+import { STANDARD, noteToMidi } from './tunings.js';
 
 export const MAX_FRET = 24;
 export const DEFAULT_SECTION_LENGTH = 16;
@@ -89,4 +89,32 @@ export function normalizeSong(raw) {
   }));
   if (!song.sections.length) song.sections.push(createSection('Intro', n));
   return song;
+}
+
+/**
+ * Move fret numbers so every note keeps sounding the same after a retune
+ * (same string count only). Cells that would go below 0 or above MAX_FRET are
+ * left as they were; returns how many cells that happened to.
+ */
+export function transposeForTuning(song, newNotes) {
+  if (newNotes.length !== song.tuning.length) return 0;
+  const deltas = newNotes.map((n, i) => noteToMidi(n) - noteToMidi(song.tuning[i]));
+  let skipped = 0;
+  for (const sec of song.sections) {
+    for (const col of sec.columns) {
+      if (col.type !== 'note') continue;
+      col.cells = col.cells.map((cell, i) => {
+        if (!deltas[i] || !/\d/.test(cell)) return cell;
+        let ok = true;
+        const moved = cell.replace(/\d+/g, (n) => {
+          const f = Number(n) - deltas[i];
+          if (f < 0 || f > MAX_FRET) ok = false;
+          return String(f);
+        });
+        if (!ok) skipped++;
+        return ok ? moved : cell;
+      });
+    }
+  }
+  return skipped;
 }
