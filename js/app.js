@@ -743,7 +743,7 @@ function renderSheet() {
       const peek = folded ? `<span class="notes-peek">${esc(lines[0] || '')}</span>${lines.length > 1 ? `<span class="notes-count">${lines.length} lines</span>` : ''}` : '';
       html += `<div class="notes-block${folded ? ' folded' : ''}">`;
       html += `<button class="notes-toggle" data-act="foldnotes" data-sec="${si}" aria-expanded="${!folded}" aria-controls="notes-${esc(sec.id)}"><span class="chev" aria-hidden="true"></span><span class="notes-label">Notes / lyrics</span>${peek}</button>`;
-      if (!folded) html += `<button class="section-notes" id="notes-${esc(sec.id)}" data-act="notes" data-sec="${si}">${esc(sec.notes)}</button>`;
+      if (!folded) html += `<button class="section-notes" id="notes-${esc(sec.id)}" data-act="notes" data-sec="${si}"><span class="notes-text">${esc(sec.notes)}</span></button>`;
       html += '</div>';
     } else if (active) {
       html += `<button class="section-notes empty" data-act="notes" data-sec="${si}">+ Add notes or lyrics</button>`;

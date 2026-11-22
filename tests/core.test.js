@@ -250,3 +250,16 @@ test('pdf: illuminated and plain styles are both valid', () => {
     }
   }
 });
+
+test('long notes wrap at the export width, splitting words longer than a line', async () => {
+  const { wrapWords } = await import('../js/tabtext.js');
+  const { wrapHelv, helvWidth } = await import('../js/pdf.js');
+  const long = 'Supercalifragilisticexpialidociousandsomeextrawordswithoutspaces';
+  const txt = wrapWords(`short ${long} end`, 20);
+  assert.ok(txt.every((l) => l.length <= 20), 'no TXT line is wider than the page');
+  assert.equal(txt.join('').replace(/ /g, ''), `short${long}end`, 'nothing is lost');
+  const pdf = wrapHelv(`short ${long} end`, 10.5, 120);
+  assert.ok(pdf.every((l) => helvWidth(l, 10.5) <= 120), 'no PDF line runs past the margin');
+  assert.equal(pdf.join('').replace(/ /g, ''), `short${long}end`);
+  assert.deepEqual(wrapWords('one two\nthree', 80), ['one two', 'three'], 'Enter still starts a new line');
+});
