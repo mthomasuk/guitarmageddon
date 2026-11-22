@@ -6,7 +6,7 @@ import { songToText, layoutSection } from './tabtext.js';
 import { noteGlyph, restGlyph, DURATION_NAMES, DURATION_FRACTIONS } from './glyphs.js';
 import { songToPdf } from './pdf.js';
 import * as store from './storage.js';
-import { playColumn, playMidi, midiFor, playSong, stopSong, audioContext } from './audio.js';
+import { playColumn, playMidi, midiFor, playSong, stopSong, audioContext, unlockAudio } from './audio.js';
 
 // ---------------------------------------------------------------- helpers
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -1090,6 +1090,21 @@ $('#btn-info').addEventListener('click', () => songInfoDialog(editor.song));
 $('#btn-undo').addEventListener('click', () => editor.undo());
 $('#btn-redo').addEventListener('click', () => editor.redo());
 $('#btn-play').addEventListener('click', togglePlay);
+
+// Browsers (iOS Safari above all) only start audio from a user gesture, and iOS can interrupt
+// it again after a call, lock or app switch, so unlock on any gesture while it isn't running.
+const unlockOnGesture = () => {
+  const c = audioContext();
+  if (c && c.state === 'running' && audioUnlocked) return;
+  try {
+    unlockAudio();
+    audioUnlocked = true;
+  } catch {
+    /* audio unavailable */
+  }
+};
+let audioUnlocked = false;
+for (const type of ['touchend', 'pointerup', 'click', 'keydown']) document.addEventListener(type, unlockOnGesture, { capture: true, passive: true });
 $('#btn-export').addEventListener('click', () => exportDialog(editor.song));
 
 $('#btn-mode').addEventListener('click', () => {
